@@ -541,15 +541,18 @@ def add_average_trace(fig, power, counts, labels, **kwargs):
                 kwds['legend_pad'][2] / kwds['figure_size'][0],
                 kwds['legend_pad'][3] / kwds['figure_size'][1])
 
+    axes = fig.axes
+
     # Calculates the average and bound for the bodysite
-    site_mean, site_lower, site_upper = trace_bounds(power, counts)
+    if power is not None and counts is not None:
+        site_mean, site_lower, site_upper = trace_bounds(power, counts)
 
     # Adds the body site line to the appropriate axes
-    axes = fig.axes
-    axes[0].plot(counts, site_lower, ':', color=kwds['color'])
-    axes[1].plot(counts, site_upper, ':', color=kwds['color'])
-    axes[2].plot(counts, site_mean, linewidth=2, color=kwds['color'],
-                 label=labels)
+    if power is not None:
+        axes[0].plot(counts, site_lower, ':', color=kwds['color'])
+        axes[1].plot(counts, site_upper, ':', color=kwds['color'])
+        axes[2].plot(counts, site_mean, linewidth=2, color=kwds['color'],
+                     label=labels)
 
     # Adjusts the figure size to allow for the new legend placement
     fig.set_size_inches(kwds['figure_size'])
