@@ -8,7 +8,6 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import skbio
-
 from scipy.stats import kruskal
 from skbio.stats.power import _check_strs
 from statsmodels.sandbox.stats.multicomp import multipletests
@@ -489,7 +488,8 @@ def barchart(height, interval=0.5, width=0.4, ax=None, errors=None,
     # Gets the xposition, for errorbars
     xpos = np.arange(0, len(height))*interval + interval/2 + offset
 
-    xleft = np.arange(0, len(height)) * interval + (interval - width)/2 + offset
+    xleft = np.arange(0,
+                      len(height)) * interval + (interval - width)/2 + offset
     xlims = [0, len(height)*interval]
 
     if 'xlim' not in kwargs or kwargs['xlim'] is None:
@@ -747,8 +747,13 @@ def get_distance_vectors(dm, df, group, order=None):
     # Loops through the groups
     for id1, o1 in enumerate(order):
         # Gets the intragroup distance
+<<<<<<< HEAD
         within['%s' % (o1)] = dm.filter(ordered_ids[o1]
                                         ).condensed_form()
+=======
+        within['%s' % (o1)] = dm.filter(
+            ordered_ids[o1]).condensed_form()
+>>>>>>> 79a05e3c6dad2b2dede11fa62bb58c50106ea41a
         for o2 in order[(id1+1):]:
             loc1 = ordered_ids[o1]
             loc2 = ordered_ids[o2]
@@ -1198,12 +1203,20 @@ def heatmap(data, ax=None,  cmap='RdBu_r', clims=None, cbar_size=11, **kwargs):
     # Checks the shape of the data is sane
     mat_shape = data.shape
     if (kwargs.get('xticklabels', None) is not None and
+<<<<<<< HEAD
         len(kwargs.get('xticklabels', [])) != mat_shape[1]):
+=======
+            len(kwargs.get('xticklabels', [])) != mat_shape[1]):
+>>>>>>> 79a05e3c6dad2b2dede11fa62bb58c50106ea41a
         raise ValueError('There must be a label for each column in '
                          'data.')
 
     if (kwargs.get('yticklabels', None) is not None and
+<<<<<<< HEAD
         len(kwargs.get('yticklabels', [])) != mat_shape[0]):
+=======
+            len(kwargs.get('yticklabels', [])) != mat_shape[0]):
+>>>>>>> 79a05e3c6dad2b2dede11fa62bb58c50106ea41a
         raise ValueError('There must be a label for each row in data.')
 
     # Gets the axis
@@ -1433,7 +1446,11 @@ def _format_axis(ax, **kwargs):
         A list of the number of samples in each plotting location, for use
         with a barchart or boxplt
     p_value : float, optional
+<<<<<<< HEAD
         Default is None. When supplied, the significance value will be 
+=======
+        Default is None. When supplied, the significance value will be
+>>>>>>> 79a05e3c6dad2b2dede11fa62bb58c50106ea41a
         displayed on the plot in the upper right hand corner by default.
     show_frame: bool, optional
         When true, the frame around the axis is displayed. When false, only the
@@ -1568,8 +1585,13 @@ def _format_axis(ax, **kwargs):
         # instance; there is not a good option to set them on the axis.
         if (kwds['%slim' % name] is not None and
                 len(kwds['%slim' % name]) != 2):
+<<<<<<< HEAD
             raise ValueError('%slim must specify a %smin and %smax value.'
                              % (name, name, name))
+=======
+            raise ValueError('%slim must specify a %smin and %smax '
+                             'value.' % (name, name, name))
+>>>>>>> 79a05e3c6dad2b2dede11fa62bb58c50106ea41a
         if name == 'x':
             ax.set_xlim(kwds['xlim'])
         elif name == 'y':
