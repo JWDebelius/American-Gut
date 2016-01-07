@@ -7,10 +7,13 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import seaborn as sn
 import skbio
 from scipy.stats import kruskal
-from skbio.stats.power import _check_strs
+# from skbio.stats.power import _check_strs
 from statsmodels.sandbox.stats.multicomp import multipletests
+
+from matplotlib import rcParams
 
 __author__ = "Justine Debelius"
 __copyright__ = "Copyright 2015, The American Gut Project"
@@ -71,110 +74,8 @@ def pad_index(df, index_col='#SampleID', nzeros=9):
     return df
 
 
-def boxplot(vecs, ax=None, notch=True, interval=0.5, show_counts=True,
-            **kwargs):
-    """Makes a more attractive boxplot
-
-    Parameters
-    ----------
-    vecs : list
-        The list of arrays to plot as boxplots. The list format allows the
-        arrays to be of uneven length.
-    ax : matplotlib axis, optional
-        The axis where data should be plotted. If none, a new axis instance
-        will be created.
-    interval : float, optional
-        The spacing between the boxplot instances on the axes
-    notch : bool, optional
-        Displays the parametric 95% confidence interval around the mean.
-    show_counts : bool, optional
-        Shows the size of the groups below each plot on the x-axis
-    p_value : float, optional
-        Default is None. When supplied, the significance value will be
-        displayed on the plot in the upper right hand corner by default.
-    show_xgrid: bool, optional
-        Default is False. Adds vertical lines at each major x-tick.
-    show_ygrid: bool, optional
-        Default is True. Adds horizonal lines at each major y-tick.
-    title: str, optional
-        The title to be placed on the graph.
-    ylims : list
-        The limits for the y-axis.
-    ylabel : str
-        The label text for the y-axis.
-
-    Returns
-    -------
-    ax : axes
-        A matplotlib axes containing the plotted data
-
-    Other Parameters
-    ----------------
-    hide_x_ticks : bool, optional
-        Display x-tick symbols on the plot
-    hide_y_ticks : bool, optional
-        Display y-tick symbols on the plot
-    p_x : float
-        The x position of the critical value text
-    p_y : float
-        The y position of the critical value text
-    p_size : int
-        The font size for the critical value text
-    title_size: int
-        The font size for the title
-    xticklabels : list
-        The strings to label each point on the x-axis.
-    xfont_angle : float
-        The angle in degrees for the x tick label text.
-    xfont_align : {'left', 'right', 'center'}
-        The horizonal alignment of the x tick label text. For rotated text,
-        an alignment or 'right' is recommended.
-    xlabel_size : int
-        The font size of the x-axis label.
-    xtick_size : int
-        The font size for the xtick labels
-    yticks : array_like
-        The positions where ticks should appear on the y-axis.
-    yticklabels : list
-        The text to be displayed at each y tick.
-    ylabel_size : int
-        The font size of the y-axis label.
-    ytick_size : int
-        The font size for the ytick labels
-    """
-    # Sets up an axes instance if necessary
-    if ax is None:
-        ax = plt.axes()
-
-    # Determines the plotting locations
-    num_cats = len(vecs)
-    xlim = [-interval/2, interval*(num_cats-1)+interval/2]
-
-    # Sets up the plotting constants
-    ticks = np.arange(0, interval*num_cats, interval)
-    counts = []
-
-    # Loops through the data
-    for tick, vec in zip(ticks, vecs):
-        # Gets vector characteristics
-        counts.append(len(vec))
-        # Plots the data
-        ax.boxplot(vec,
-                   positions=[tick],
-                   notch=notch)
-
-    # Sets up axis formatting
-    kwargs['counts'] = kwargs.get('counts', counts)
-    kwargs['xlim'] = kwargs.get('xlim', xlim)
-    kwargs['xticks'] = kwargs.get('xticks', ticks)
-
-    _format_axis(ax, **kwargs)
-
-    return ax
-
-
-def pretty_pandas_boxplot(meta, group, cat, order=None, ax=None,
-                          **kwargs):
+def pretty_pandas_boxplot(meta, group, metric, order=None, ax=None, notch=True,
+                          bw=False, show_n=False, show_p=False, **kwargs):
     """Creates a more attractive boxplot than pandas
 
     Parameters
@@ -185,7 +86,7 @@ def pretty_pandas_boxplot(meta, group, cat, order=None, ax=None,
         with categories given by `order`.
     group : str
         The name of a column in meta which is a categorical predictor variable
-    cat : str
+    metric : str
         A column in meta which contains a continous response variable
     order : list, optional
         The order of categories in `group`. This can be used to limit
@@ -217,32 +118,54 @@ def pretty_pandas_boxplot(meta, group, cat, order=None, ax=None,
     ax : axes
         A matplotlib axes containing the plotted data
     """
-    grouped = meta.groupby(group)
-
-    # Sets up the plotting order
-    if order is None:
-        order = grouped.groups.keys()
-
-    # Gets the data vectors
-    vecs = [grouped.get_group(g)[cat].values for g in order]
-
-    # Formats the axis, if not already done
-    kwargs['xticklabels'] = kwargs.get('xticklabels',
-                                       [g.split('(')[0] for g in order])
-    kwargs['show_xticks'] = kwargs.get('show_xticks', False)
-    kwargs['show_ygrid'] = kwargs.get('show_ygrid', True)
 
     # Calculates the p value
+    if order is None:
+        order = list(set(meta[group]) - {np.nan})
+    vecs = [meta.loc[meta[group] == g, metric] for g in order]
     h, p = kruskal(*vecs)
 
-    # Sets the boxplot properties
-    ax = boxplot(vecs=vecs, ax=ax, p_value=p, **kwargs)
+    # Gets the group sizes and order
+    counts = meta.groupby(group).count().max(1).values
+
+    # Sets up the default parameters
+    if show_n:
+        kwargs['counts'] = counts
+    else:
+        kwargs['counts'] = None
+    if show_p:
+        kwargs['p_value'] = p
+    else:
+        kwargs['p_value'] = None
+
+    kwargs['frame'] = kwargs.get('frame', False)
+
+    if ax is None:
+        ax = plt.axes()
+
+    if bw:
+        snkwargs = {'boxprops': {'ec': 'k', 'fc': 'w'},
+                    'flierprops': {'markerfacecolor': 'k', 'marker': 'd'},
+                    'width': 0.65
+                    }
+    else:
+        snkwargs = {}
+
+    sn.boxplot(x=group,
+               y=metric,
+               data=meta,
+               order=order,
+               notch=notch,
+               **snkwargs
+               )
+
+    _format_axis(ax, **kwargs)
 
     return ax
 
 
 def post_hoc_pandas(meta, group, cat, order=None, correct=None,
-                    show_stats=True):
+    show_stats=True):
     """Preforms an post-hoc comparison between two groups
 
     Parameters
@@ -315,7 +238,7 @@ def post_hoc_pandas(meta, group, cat, order=None, correct=None,
 
 
 def multiple_correct_post_hoc(raw_ph, order, alphafwer=0.05,
-                              method='bonferroni'):
+    method='bonferroni'):
     """Performs multiple hypothesis correction on post hoc test matrices
 
     Parameters
@@ -378,8 +301,8 @@ def multiple_correct_post_hoc(raw_ph, order, alphafwer=0.05,
 
 
 def barchart(height, interval=0.5, width=0.4, ax=None, errors=None,
-             colormap=None, match_colors=True, elinewidth=2, ecapwidth=2,
-             offset=0, **kwargs):
+    colormap=None, match_colors=True, elinewidth=2, ecapwidth=2,
+    offset=0, **kwargs):
     """Renders a barchart
 
     Parameters
@@ -520,8 +443,8 @@ def barchart(height, interval=0.5, width=0.4, ax=None, errors=None,
 
 
 def add_comparison_bars(centers, tops, p_values, ax, space=None,
-                        interval=None, lowest=None, factor=5, label_size=10,
-                        show_value=True):
+    interval=None, lowest=None, factor=5, label_size=10,
+    show_value=True):
     """Adds p_value bars
 
     The assumes that comparison bars are being introduced for a
@@ -758,13 +681,13 @@ def get_distance_vectors(dm, df, group, order=None):
 
 
 def beta_diversity_bars(dm, meta, group, order=None, ref_groups=None,
-                        num_iter=999, p_crit=0.01, p_table=None,
-                        p_tab_col='Parametric p-value (Bonferroni-corrected)',
-                        ref_less=True, ax=None, interval=0.1, width=0.1,
-                        show_seperation=True, colormap=None, match_colors=True,
-                        elinewidth=2, ecapwidth=2, show_p=False, lowest=None,
-                        sep_size=0.035, label_size=12, show_p_value=False,
-                        **kwargs):
+    num_iter=999, p_crit=0.01, p_table=None,
+    p_tab_col='Parametric p-value (Bonferroni-corrected)',
+    ref_less=True, ax=None, interval=0.1, width=0.1,
+    show_seperation=True, colormap=None, match_colors=True,
+    elinewidth=2, ecapwidth=2, show_p=False, lowest=None,
+    sep_size=0.035, label_size=12, show_p_value=False,
+    **kwargs):
     """Creates a barchart of the beta diversity distances
 
     Parameters
@@ -1236,10 +1159,10 @@ def heatmap(data, ax=None,  cmap='RdBu_r', clims=None, cbar_size=11, **kwargs):
 
 
 def make_dual_heatmaps(gs, order=None, axes=None, p_column='Bonferroni_P',
-                       p_crit=0.05, ref=None, ratio_base=np.e, cmap1='Greens',
-                       cmap2='RdBu_r', clims1=None, clims2=[-2, 2],
-                       label='INDEX', sort_by_taxa=True, cbar_size=12,
-                       consistent_size=True, width=11, height=8.5, **kwargs):
+    p_crit=0.05, ref=None, ratio_base=np.e, cmap1='Greens',
+    cmap2='RdBu_r', clims1=None, clims2=[-2, 2],
+    label='INDEX', sort_by_taxa=True, cbar_size=12,
+    consistent_size=True, width=11, height=8.5, **kwargs):
     """Creates side by side abundance and log ratio heatmaps
 
     Parameters
@@ -1438,18 +1361,6 @@ def _format_axis(ax, **kwargs):
     show_frame: bool, optional
         When true, the frame around the axis is displayed. When false, only the
         lower and left axes will be dispalyed.
-    show_xticks : bool, optional
-        Default is True. Display a small black tick symbol at the top and
-        bottom of the graph at each major tick mark. This does not affect
-        whether text will be displayed at the same location.
-    show_yticks : bool, optional
-        Default is True. Display a small black tick symbol at the top and
-        bottom of the graph at each major tick mark. This does not affect
-        whether text will be displayed at the same location.
-    show_xgrid: bool, optional
-        Default is False. Adds vertical grid lines at each major x-tick.
-    show_ygrid: bool, optional
-        Default is True. Adds horizonal grid lines at each major y-tick.
     title: str, optional
         The title to be placed on the graph.
     xlim : list, optional
@@ -1532,12 +1443,9 @@ def _format_axis(ax, **kwargs):
             'p_y': None,
             'p_size': 12,
             'show_frame': True,
-            'show_xticks': True,
-            'show_yticks': True,
-            'show_xgrid': False,
-            'show_ygrid': False,
             'title': '',
             'title_size': 18,
+            'trim_labels': True,
             'xlim': None,
             'xlabel': '',
             'xticks': None,
@@ -1592,6 +1500,9 @@ def _format_axis(ax, **kwargs):
         else:
             tls = ticklabels_v
 
+        if kwds['trim_labels']:
+            tls = [g.replace('/', '/\n') for g in tls]
+
         axis.set_ticklabels(tls,
                             ha=kwds['%sfont_align' % name],
                             rotation=kwds['%sfont_angle' % name],
@@ -1601,26 +1512,11 @@ def _format_axis(ax, **kwargs):
         axis.set_label_text(kwds['%slabel' % name],
                             size=kwds['%slabel_size' % name])
 
-        # Sets the grid
-        axis.grid(kwds['show_%sgrid' % name])
-
-        # Hides the axis tick marks, if desirable
-        if not kwds['show_%sticks' % name]:
-            for tic in axis.get_major_ticks():
-                tic.tick1On = False
-                tic.tick2On = False
-
     _setup_axis_(ax.xaxis, 'x')
     _setup_axis_(ax.yaxis, 'y')
 
     # Removes the axis frame, if desired.
-    if not kwds['show_frame']:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        for tic in ax.xaxis.get_major_ticks():
-            tic.tick2On = False
-        for tic in ax.yaxis.get_major_ticks():
-            tic.tick2On = False
+    sn.despine(ax=ax, top=True, right=True)
 
     # Adds a title, if appropriate
     ax.set_title(kwds['title'], size=kwds['title_size'])
