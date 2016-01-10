@@ -78,7 +78,7 @@ amgut_sub = np.array([
     ])
 
 
-class AgDictionaryTest(TestCase):
+class AgDataDictionaryTest(TestCase):
     def setUp(self):
         self.map_ = pd.DataFrame(
             amgut_sub,
@@ -103,13 +103,25 @@ class AgDictionaryTest(TestCase):
             else:
                 return x
 
+        def remap_ordinal(x):
+            if x in {'Never', 'Rarely (a few times/month)'}:
+                return 'No'
+            elif x in {'Occasionally (1-2 times/week)',
+                       'Regularly (3-5 times/week)',
+                       'Daily'}:
+                return 'Yes'
+            else:
+                return np.nan
+
         self.remap_poo_quality = remap_poo_quality
+        self.remap_ordinal = remap_ordinal
 
         self.ag_question = AgQuestion(
             name='ALCOHOL_TYPES_UNSPECIFIED',
             description=('Has the participant described their alcohol use'),
             dtype=bool
             )
+
         self.ag_categorical = AgCategorical(
             name='BOWEL_MOVEMENT_QUALITY',
             description=('Whether the participant is constipated, has '
@@ -123,18 +135,14 @@ class AgDictionaryTest(TestCase):
             remap=remap_poo_quality
             )
 
-        self.ag_clinical = AgCategorical(
+        self.ag_bool = AgBool(
+            name='ALCOHOL_TYPES_UNSPECIFIED',
+            description=('Has the participant described their alcohol use'),
+            )
+
+        self.ag_clinical = AgClinical(
             name='IBD',
             description=('Has the participant been diagnosed with IBD?'),
-            dtype=str,
-            groups={
-                ('Diagnosed by a medical professional (doctor, physician '
-                 'assistant)'),
-                'Diagnosed by an alternative medicine practitioner',
-                'Self-diagnosed',
-                'I do not have this condition'
-                },
-            clinical=True
             )
 
         self.ag_ordinal = AgOrdinal(
@@ -144,92 +152,27 @@ class AgDictionaryTest(TestCase):
             order=['Never', 'Rarely (a few times/month)',
                    'Occasionally (1-2 times/week)',
                    'Regularly (3-5 times/week)',
-                   'Daily']
+                   'Daily'],
+            remap=self.remap_ordinal,
+            )
+
+        self.ag_frequency = AgFrequency(
+            name='ALCOHOL_FREQUENCY',
+            description='How often the participant consumes alcohol.',
             )
 
         self.ag_continous = AgContinous(
             name='AGE_YEARS',
             description='Participant age in years',
-            dtype=float,
-            unit='years'
+            unit='years',
+            range=[20, 50]
             )
 
         self.ag_multiple = AgMultiple(
             name="ALCOHOL_TYPES_BEERCIDER",
             description='Does the participant drink beer or cider',
-            dtype=bool,
             unspecified="ALCOHOL_TYPES_UNSPECIFIED"
             )
-
-    def test_ag_question_init(self):
-        name = 'TEST_COLUMN'
-        description = 'Testing. 1, 2, 3.\nAnything but that!'
-        dtype = str
-        clean_name = 'Test Column'
-
-        test_class = AgQuestion(name, description, dtype, clean_name)
-        self.assertEqual(name, test_class.name)
-        self.assertEqual(description, test_class.description)
-        self.assertEqual(dtype, test_class.dtype)
-        self.assertEqual(clean_name, test_class.clean_name)
-
-    def test_ag_question_init_name_error(self):
-        name = ['TEST_COLUMN']
-        description = 'Testing. 1, 2, 3.\nAnything but that!'
-        dtype = str
-
-        with self.assertRaises(TypeError):
-            AgQuestion(name, description, dtype)
-
-    def test_ag_question_init_description_error(self):
-        name = 'TEST_COLUMN'
-        description = {'Joann': 'Testing. 1, 2, 3.',
-                       'Mark': 'Anything but that!'}
-        dtype = str
-
-        with self.assertRaises(TypeError):
-            AgQuestion(name, description, dtype)
-
-    def test_ag_question_init_dtype_error(self):
-        name = 'TEST_COLUMN'
-        description = 'Testing. 1, 2, 3.\nAnything but that!'
-        dtype = 'str'
-
-        with self.assertRaises(TypeError):
-            AgQuestion(name, description, dtype)
-
-    def test_ag_question_init_clean_name_error(self):
-        name = 'TEST_COLUMN'
-        description = 'Testing. 1, 2, 3.\nAnything but that!'
-        dtype = str
-        clean_name = ['Test Column']
-
-        with self.assertRaises(TypeError):
-            AgQuestion(name, description, dtype, clean_name)
-
-    def test_ag_question_remap_data_type(self):
-        self.assertTrue(isinstance(self.map_.loc['10317.000006668',
-                                   self.ag_question.name], str))
-
-        self.ag_question.remap_data_type(self.map_)
-        self.assertTrue(isinstance(self.map_.loc['10317.000006668',
-                                   self.ag_question.name], np.bool_))
-        self.assertEqual(self.map_[self.ag_question.name].dtype, np.bool_)
-        self.assertEqual(np.sum(self.map_[self.ag_question.name]), 10)
-
-        self.ag_question.dtype = int
-        self.ag_question.remap_data_type(self.map_)
-        self.assertTrue(isinstance(self.map_.loc['10317.000006668',
-                                   self.ag_question.name], int))
-
-    def test_ag_question_check_map_error(self):
-        test_class = AgQuestion(
-            name='TEST_COLUMN',
-            description='Testing. 1, 2, 3.\nAnything but that!',
-            dtype=str
-        )
-        with self.assertRaises(ValueError):
-            test_class.check_map(self.map_)
 
     def test_ag_categorical_init(self):
         name = 'BOWEL_MOVEMENT_QUALITY'
@@ -261,8 +204,22 @@ class AgDictionaryTest(TestCase):
         self.assertEqual(3, test.remap_(3))
         self.assertEqual(test.type, 'Categorical')
 
+    def test_ag_categorical_update_groups(self):
+        self.ag_categorical._update_groups(self.ag_categorical.remap_)
+        self.assertEqual(self.ag_categorical.groups,
+                         {'No Reference', 'Well formed', 'Constipated',
+                          'Diarrhea'})
+
+        self.assertEqual(self.ag_categorical.earlier_groups, [{
+            "I don't know, I do not have a point of reference",
+            "I tend to be constipated (have difficulty passing stool)",
+            "I tend to have diarrhea (watery stool)",
+            "I tend to have normal formed stool"
+            }])
+
     def test_ag_categorical_remove_ambigious(self):
-        self.ag_categorical.remove_ambigious(self.map_)
+        self.ag_categorical.drop_ambiguous = True
+        self.ag_categorical.remove_ambiguity(self.map_)
 
         self.assertEqual(set(self.map_[self.ag_categorical.name]) - {np.nan}, {
             "I tend to be constipated (have difficulty passing stool)",
@@ -298,7 +255,8 @@ class AgDictionaryTest(TestCase):
             }])
 
     def test_ag_categorical_drop_infrequent(self):
-        self.ag_categorical.drop_infrequency(self.map_, cutoff=4)
+        self.ag_categorical.frequency_cutoff = 4
+        self.ag_categorical.drop_infrequent(self.map_)
 
         self.assertEqual(set(self.map_[self.ag_categorical.name]) - {np.nan}, {
             "I tend to have normal formed stool"
@@ -312,11 +270,32 @@ class AgDictionaryTest(TestCase):
             "I tend to have normal formed stool"
             }])
 
-    def test_ag_categorical_clincal_error(self):
-        with self.assertRaises(ValueError):
-            self.ag_categorical.remap_clinical(self.map_)
+    def test_ag_bool_init(self):
+        name = 'TEST_COLUMN'
+        description = 'Testing. 1, 2, 3.\nAnything but that!'
 
-    def test_ag_categorical_remap_clinical_strict(self):
+        test_class = AgBool(name, description)
+
+        self.assertEqual(test_class.dtype, bool)
+        self.assertEqual(test_class.groups, {True, False})
+        self.assertEqual(test_class.type, 'Bool')
+
+    def test_ag_clinical_init(self):
+        clinical_groups = {'Diagnosed by a medical professional '
+                           '(doctor, physician assistant)',
+                           'Diagnosed by an alternative medicine practitioner',
+                           'Self-diagnosed',
+                           'I do not have this condition'}
+        test_class = AgClinical(
+            name='TEST_COLUMN',
+            description='Testing. 1, 2, 3.\nAnything but that!',
+            strict=True,
+            )
+        self.assertEqual(test_class.dtype, str)
+        self.assertEqual(test_class.groups, clinical_groups)
+        self.assertEqual(test_class.type, 'Clinical')
+
+    def test_ag_clinical_remap_strict(self):
         self.ag_clinical.remap_clinical(self.map_)
 
         count = pd.Series([14, 5],
@@ -324,14 +303,14 @@ class AgDictionaryTest(TestCase):
                           dtype=np.int64)
         pdt.assert_series_equal(count, self.map_.groupby('IBD').count().max(1))
 
-        self.assertEqual(self.ag_clinical.groups, {'Yes', 'No'})
-        self.assertEqual(self.ag_clinical.earlier_groups, [{
-            ('Diagnosed by a medical professional (doctor, physician '
-             'assistant)'),
-            'Diagnosed by an alternative medicine practitioner',
-            'Self-diagnosed',
-            'I do not have this condition'
-            }])
+    def test_ag_clincial_remap(self):
+        self.ag_clinical.strict = False
+        self.ag_clinical.remap_clinical(self.map_)
+
+        count = pd.Series([14, 4],
+                          index=pd.Index(['No', 'Yes'], name='IBD'),
+                          dtype=np.int64)
+        pdt.assert_series_equal(count, self.map_.groupby('IBD').count().max(1))
 
     def test_ag_ordinal_init(self):
         order = ['Never', 'Rarely (a few times/month)',
@@ -348,32 +327,23 @@ class AgDictionaryTest(TestCase):
         self.assertEqual(test.order, order)
         self.assertEqual(test.type, 'Ordinal')
 
-    def test_ag_ordinal_clean_frequency(self):
-        self.ag_ordinal.clean_frequency(self.map_)
-        self.assertEqual(set(self.map_[self.ag_ordinal.name]) - {np.nan}, {
-            'Never', 'A few times/month', '1-2 times/week', '3-5 times/week',
-            'Daily'
-            })
-        self.assertEqual(self.ag_ordinal.earlier_groups, [[
-            'Never', 'Rarely (a few times/month)',
-            'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
-            'Daily'
-            ]])
-        npt.assert_array_equal(self.ag_ordinal.order, [
-            'Never', 'A few times/month', '1-2 times/week', '3-5 times/week',
-            'Daily'
-            ])
+    def test_ag_ordinal_update_order(self):
+        earlier_order = ['Never', 'Rarely (a few times/month)',
+                         'Occasionally (1-2 times/week)',
+                         'Regularly (3-5 times/week)',
+                         'Daily']
+
+        self.ag_ordinal._update_order(self.remap_ordinal)
+        self.assertEqual(self.ag_ordinal.order, ['No', 'Yes'])
+        self.assertEqual(self.ag_ordinal.earlier_order, [earlier_order])
+
+    def test_ag_ordinal_remap_groups(self):
+        self.ag_ordinal.remap_groups(self.map_)
+        self.assertEqual(set(self.map_[self.ag_ordinal.name]) - {np.nan},
+                         {'Yes', 'No'})
 
     def test_ag_ordinal_convert_to_numeric(self):
         self.ag_ordinal.convert_to_numeric(self.map_)
-        self.assertEqual(set(self.map_[self.ag_ordinal.name]) - {np.nan},
-                         {0, 1, 2, 3, 4})
-        self.assertEqual(self.ag_ordinal.groups, {0, 1, 2, 3, 4})
-        self.assertEqual(self.ag_ordinal.earlier_groups, [[
-            'Never', 'Rarely (a few times/month)',
-            'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
-            'Daily'
-            ]])
         npt.assert_array_equal(self.ag_ordinal.order,
                                np.array([0, 1, 2, 3, 4]))
 
@@ -386,18 +356,26 @@ class AgDictionaryTest(TestCase):
             '(3) Regularly (3-5 times/week)',
             '(4) Daily'
             })
-        self.assertEqual(self.ag_ordinal.earlier_groups, [[
-            'Never', 'Rarely (a few times/month)',
-            'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+
+    def test_ag_frequency_init(self):
+        order = ['Never', 'Rarely (a few times/month)',
+                 'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+                 'Daily']
+        test = AgFrequency(
+            name='ALCOHOL_FREQUENCY',
+            description=('How often the participant consumes alcohol.'),
+            )
+
+        self.assertEqual(test.order, order)
+        self.assertEqual(test.dtype, str)
+        self.assertEqual(test.type, 'Ordinal')
+
+    def test_ag_frequency_clean(self):
+        self.ag_frequency.clean(self.map_)
+        self.assertEqual(set(self.map_[self.ag_ordinal.name]) - {np.nan}, {
+            'Never', 'A few times/month', '1-2 times/week', '3-5 times/week',
             'Daily'
-            ]])
-        self.assertEqual(self.ag_ordinal.order, [
-            '(0) Never',
-            '(1) Rarely (a few times/month)',
-            '(2) Occasionally (1-2 times/week)',
-            '(3) Regularly (3-5 times/week)',
-            '(4) Daily'
-            ])
+            })
 
     def test_ag_continous_init(self):
         unit = 'years'
@@ -405,16 +383,17 @@ class AgDictionaryTest(TestCase):
         test = AgContinous(
             name='AGE_YEARS',
             description='Participant age in years',
-            dtype=int,
             unit=unit
             )
 
         self.assertEqual(unit, test.unit)
         self.assertEqual('Continous', test.type)
 
-    def test_ag_continous_drop_outliers_limit_error(self):
+    def test_ag_continous_init_error(self):
         with self.assertRaises(ValueError):
-            self.ag_continous.drop_outliers(self.map_, 12, 5)
+            AgContinous('TEST_COLUMN',
+                        'Testing. 1, 2, 3.\nAnything but that!',
+                        range=[12, 5])
 
     def test_ag_continous_drop_outliers(self):
         self.assertEqual(self.map_[
@@ -424,7 +403,7 @@ class AgDictionaryTest(TestCase):
             self.ag_continous.name].dropna().astype(float).max(),
                          77.0)
         # self.assertEqual(self.map_.AGE_YEAR.dropna().min(), 2
-        self.ag_continous.drop_outliers(self.map_, 20, 50)
+        self.ag_continous.drop_outliers(self.map_)
         self.assertEqual(self.map_[self.ag_continous.name].dropna().min(),
                          26.0)
         self.assertEqual(self.map_[self.ag_continous.name].dropna().max(),
@@ -437,7 +416,6 @@ class AgDictionaryTest(TestCase):
         test = AgMultiple(
             name="ALCOHOL_TYPES_BEERCIDER",
             description='Does the participant drink beer or cider',
-            dtype=bool,
             unspecified=unspecified)
         self.assertEqual(test.unspecified, unspecified)
 
@@ -448,6 +426,85 @@ class AgDictionaryTest(TestCase):
         self.ag_multiple.correct_unspecified(self.map_)
         self.assertEqual(np.sum(pd.isnull(self.map_[self.ag_multiple.name])),
                          10)
+
+    def test_ag_multiple_unspecified_error(self):
+        self.ag_multiple.unspecified = 'TEST_COLUMN'
+        with self.assertRaises(ValueError):
+            self.ag_multiple.correct_unspecified(self.map_)
+
+
+class AgAuxillaryDictTest(TestCase):
+    def test_remap_abx(self):
+        self.assertEqual(_remap_abx('I have not taken antibiotics in the past '
+                                    'year'), 'More than a year')
+        self.assertEqual(_remap_abx(3), 3)
+        self.assertEqual(_remap_abx('cat'), 'cat')
+
+    def test_remap_bowel_frequency(self):
+        self.assertEqual(_remap_bowel_frequency('Four'), 'Four or more')
+        self.assertEqual(_remap_bowel_frequency('Five or more'),
+                         'Four or more')
+        self.assertEqual(_remap_bowel_frequency('foo'), 'foo')
+
+    def test_remap_fecal_quality(self):
+        self.assertEqual('Constipated',
+                         _remap_fecal_quality('I tend to have diarrhea '
+                                              '(watery stool)'))
+        self.assertEqual('Diarrhea',
+                         _remap_fecal_quality('I tend to be constipated '
+                                              '(have difficulty passing '
+                                              'stool)'))
+        self.assertEqual('Normal',
+                         _remap_fecal_quality('I tend to have normal formed'
+                                              ' stool'))
+        self.assertEqual('foo',
+                         _remap_fecal_quality('foo'))
+
+    def test_remap_contraception(self):
+        self.assertEqual('Yes', _remap_contraceptive('Yes, I like Supergirl'))
+        self.assertEqual('I like Supergirl',
+                         _remap_contraceptive('I like Supergirl'))
+
+    def test_remap_gluten(self):
+        self.assertEqual('Celiac Disease',
+                         _remap_gluten('I was diagnosed with celiac disease'))
+        self.assertEqual('Non Medical',
+                         _remap_gluten('I do not eat gluten because it makes'
+                                       ' me feel bad'))
+        self.assertEqual("Anti-Gluten Allergy",
+                         _remap_gluten('I was diagnosed with gluten allergy '
+                                       '(anti-gluten IgG), but not celiac '
+                                       'disease'))
+        self.assertEqual('foo', _remap_gluten('foo'))
+
+    def test_remap_last_travel(self):
+        self.assertEqual('More than a year',
+                         _remap_last_travel('I have not been outside of my '
+                                            'country of residence in'
+                                            ' the past year.'))
+        self.assertEqual('foo', _remap_last_travel('foo'))
+
+    def test_remap_pool_frequency(self):
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('Daily'))
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('Occasionally '
+                                               '(1-2 times/week)')),
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('Regularly (3-5 times/week)'))
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('1-2 times/week')),
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('3-5 times/week'))
+        self.assertEqual('foo', _remap_pool_frequency('food'))
+
+    def test_remap_sleep(self):
+        self.assertEqual('Less than 6 hours',
+                         _remap_sleep('Less than 5 hours'))
+        self.assertEqual('Less than 6 hours',
+                         _remap_sleep('5-6 hours'))
+        self.assertEqual('foo', _remap_sleep('foo'))
+
 
 if __name__ == '__main__':
     main()

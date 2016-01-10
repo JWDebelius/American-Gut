@@ -6,64 +6,22 @@ import pandas as pd
 import skbio
 
 
-def _remap_bowel_movement_frequency(x):
-    if x in {'Four', 'Five or more'}:
-        return 'Four or more'
-    else:
-        return x
-
-
-def _remap_breastmilk(x):
-    if x in {'I eat both solid food and formula/breast milk', 'Yes'}:
-        return 'Yes'
-    else:
-        return x
-
-
-def _remap_contraceptive(x):
-    if isinstance(x, str):
-        return x.split(', ')[0]
-    else:
-        return x
-
-
-def _remap_flu_date(x):
-    if x in {'Week', 'Month'}:
-        return 'Month'
-    else:
-        return x
-
-
-def _remap_last_move(x):
-    if x in {'Within the past month', 'Within the past 3 months'}:
-        return 'Within the past 3 months'
-    else:
-        return x
-
-
-def _remap_sex(x):
-    if x in {'Other'}:
-        return np.nan
-    else:
-        return x
-
-
-def _remap_sleep(x):
-    if x in {'Less than 5 hours', '5-6 hours'}:
-        return 'Less than 6 hours'
-    else:
-        return x
-
-
 class AgData:
     na_values = ['NA', 'unknown', '', 'no_data', 'None', 'Unknown']
     alpha_columns = {'PD_whole_tree_1k', 'PD_whole_tree_10k',
                      'shannon_1k', 'shannon_10k',
                      'chao1_1k', 'chao1_10k',
                      'observed_otus_1k', 'observed_otus_10k'}
+    bodysite_limits = {'fecal': 55,
+                       }
+    subset_columns = {'IBD': 'SUBSET_IBD',
+                      'DIABETES': 'SUBSET_DIABETES',
+                      'BMI_CAT': 'SUBSET_BMI',
+                      'ANTIBIOTIC_HISTORY': 'SUBSET_ANTIBIOTIC_HISTORY',
+                      'AGE_CAT': 'SUBSET_AGE'}
 
     def __init__(self, bodysite, trim, depth, sub_participants=False,
-                 one_sample=False):
+                 one_sample=False, **kwargs):
 
         # Checks the inputs
         if bodysite not in {'fecal', 'oral', 'skin'}:
@@ -133,16 +91,36 @@ class AgData:
 
         self.otu = biom.load_table(otu_fp)
 
-        self.unweighted = skbio.DistanceMatrix.read(unweighted_fp)
-        self.weighted = skbio.DistanceMatrix.read(weighted_fp)
+        self.beta = {'unweighted': skbio.DistanceMatrix.read(unweighted_fp),
+                     'weighted': skbio.DistanceMatrix.read(weighted_fp)}
 
     def drop_alpha_outliers(self, metric='PD_whole_tree_10k', limit=55):
         self.outliers = self.map_.loc[(self.map_[metric] >= limit)].index
         keep = self.map_.loc[(self.map_[metric] < limit)].index
         self.map_ = self.map_.loc[keep]
         self.otu = self.otu.filter(keep)
-        self.unweighted = self.unweighted.filter(keep)
-        self.weighted = self.weighted.filter(keep)
+        self.beta = {'unweighted': self.beta['unweighted'].filter(keep),
+                     'weighted': self.beta['weighted'].filter(keep)}
+
+    def drop_bmi_outliers(self, bmi_limits=[5, 55]):
+        self.map_['BMI'] = self.map_['BMI'].astype(float)
+        keep = ((self.map_.BMI > bmi_limits[0]) &
+                (self.map_.BMI < bmi_limits[1]))
+        discard = ~ keep
+        self.map_['BMI_CORRECTED'] = self.map_.loc[keep, 'BMI']
+        self.map_.loc[discard, 'BMI_CAT'] = np.nan
+
+    def cast_subset(self):
+        pass
+
+    def return_dataset(self, group):
+        """..."""
+        self.clean_up_column(group)
+        defined = self.map_[~ pd.isnull(self.map_[group.name])].index
+        map_ = self.map_.loc[defined]
+        otu_ = self.otu.filter(defined, axis='sample')
+        beta = {k: v.filter(defined) for k, v in self.beta.iteritems()}
+        return map_, otu_, beta
 
     def clean_up_column(self, group):
         """Cleans up the indicated mapping column using the group"""
@@ -151,20 +129,16 @@ class AgData:
 
         if datatype in {'Continous'}:
             group.drop_outliers(self.map_)
-        elif datatype == 'Categorical':
-            group.remove_ambigious(self.map_)
+        elif datatype in {'Categorical'}:
+            group.remove_ambiguity(self.map_)
             group.drop_infrequent(self.map_)
+        elif datatype in {'Clincial'}:
             group.remap_clincial(self.map_)
         elif datatype == 'Multiple':
             group.correct_unspecified(self.map_)
-        elif datatype == 'Ordinal':
-            group.clean_frequency(self.map_)
+        elif datatype == 'Frequency':
+            group.clean(self.map_)
 
-        if datatype in {'Categorical', 'Multiple', 'Ordinal'}:
+        if datatype in {'Categorical', 'Multiple', 'Clinical', 'Frequency',
+                        'Ordinal'}:
             group.remap_groups(self.map_)
-
-
-
-
-
-
