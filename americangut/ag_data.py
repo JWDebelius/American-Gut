@@ -91,16 +91,22 @@ class AgData:
 
         self.otu = biom.load_table(otu_fp)
 
-        self.beta = {'unweighted': skbio.DistanceMatrix.read(unweighted_fp),
-                     'weighted': skbio.DistanceMatrix.read(weighted_fp)}
+        self.beta = {'unweighted_unifrac':
+                     skbio.DistanceMatrix.read(unweighted_fp),
+                     'weighted_unifrac':
+                     skbio.DistanceMatrix.read(weighted_fp)
+                     }
 
     def drop_alpha_outliers(self, metric='PD_whole_tree_10k', limit=55):
         self.outliers = self.map_.loc[(self.map_[metric] >= limit)].index
         keep = self.map_.loc[(self.map_[metric] < limit)].index
         self.map_ = self.map_.loc[keep]
         self.otu = self.otu.filter(keep)
-        self.beta = {'unweighted': self.beta['unweighted'].filter(keep),
-                     'weighted': self.beta['weighted'].filter(keep)}
+        self.beta = {'unweighted_unifrac':
+                     self.beta['unweighted_unifrac'].filter(keep),
+                     'weighted_unifrac':
+                     self.beta['weighted_unifrac'].filter(keep)
+                     }
 
     def drop_bmi_outliers(self, bmi_limits=[5, 55]):
         self.map_['BMI'] = self.map_['BMI'].astype(float)
@@ -115,7 +121,6 @@ class AgData:
 
     def return_dataset(self, group):
         """..."""
-        self.clean_up_column(group)
         defined = self.map_[~ pd.isnull(self.map_[group.name])].index
         map_ = self.map_.loc[defined]
         otu_ = self.otu.filter(defined, axis='sample')
@@ -126,19 +131,19 @@ class AgData:
         """Cleans up the indicated mapping column using the group"""
 
         datatype = group.type
+        group.remap_data_type(self.map_)
 
         if datatype in {'Continous'}:
             group.drop_outliers(self.map_)
-        elif datatype in {'Categorical'}:
+        elif datatype in {'Categorical', 'Multiple', 'Clinical', 'Frequency'}:
             group.remove_ambiguity(self.map_)
             group.drop_infrequent(self.map_)
-        elif datatype in {'Clincial'}:
+            group.remap_groups(self.map_)
+
+        if datatype in {'Clincial'}:
             group.remap_clincial(self.map_)
         elif datatype == 'Multiple':
             group.correct_unspecified(self.map_)
         elif datatype == 'Frequency':
             group.clean(self.map_)
-
-        if datatype in {'Categorical', 'Multiple', 'Clinical', 'Frequency',
-                        'Ordinal'}:
-            group.remap_groups(self.map_)
+            

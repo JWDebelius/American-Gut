@@ -10,8 +10,7 @@ class AgQuestion:
     true_values = {'yes', 'y', 'true', 1}
     false_values = {'no', 'n', 'false', 0}
 
-    def __init__(self, name, description, dtype, clean_name=None,
-                 **kwargs):
+    def __init__(self, name, description, dtype, clean_name=None, **kwargs):
         """A base object for describing single question outputs
 
         Parameters
@@ -28,20 +27,22 @@ class AgQuestion:
         if not isinstance(clean_name, str) and clean_name is not None:
             raise TypeError('If supplied, clean_name must be a string')
 
-        # Handles the main information
+        # Handles the main information about the data
         self.name = name
         self.description = description
         self.dtype = dtype
+
         self.type = 'Question'
         if clean_name is None:
             self.clean_name = name.replace('_', ' ').title()
         else:
             self.clean_name = clean_name
+
+        # Sets up
         self.free_response = kwargs.get('free_response', False)
+        self.mimmarks = kwargs.get('mimmarks', False)
         self.ontology = kwargs.get('ontology', None)
-        self.frequency_cutoff = kwargs.get('frequency_cutoff', None)
         self.remap_ = kwargs.get('remap', None)
-        self.extremes = kwargs.get('extremes', None)
         self.subset = kwargs.get('subset', True)
 
     def remap_data_type(self, map_):
@@ -64,9 +65,15 @@ class AgQuestion:
                         return bool(x)
                     except:
                         return np.nan
-            map_[self.name] = map_[self.name].apply(remap_).astype(bool)
         else:
-            map_[self.name] = map_[self.name].dropna().astype(self.dtype)
+            def remap_(x):
+                return self.dtype(x)
+
+        map_[self.name] = map_[self.name].apply(remap_).astype(self.dtype)
+
+        if self.type in {'Categorical', 'Multiple', 'Clinical', 'Bool',
+                         'Frequency'}:
+            self._update_order(remap_)
 
     def check_map(self, map_):
         if self.name not in map_.columns:
@@ -76,23 +83,44 @@ class AgQuestion:
 
 class AgCategorical(AgQuestion):
 
-    def __init__(self, name, description, dtype, groups, **kwargs):
+    def __init__(self, name, description, dtype, order, **kwargs):
         """..."""
         if dtype not in {str, bool, int, float}:
             raise ValueError('%s is not a supported datatype for a '
                              'categorical variable.' % dtype)
+        # Initializes the question
         AgQuestion.__init__(self, name, description, dtype, **kwargs)
+
         self.type = 'Categorical'
-        self.groups = groups
-        self.earlier_groups = []
+
+        if len(order) == 1:
+            raise ValueError('There cannot be possible response.')
+        self.order = order
+        self.extremes = kwargs.get('extremes', None)
+        if self.extremes is None:
+            self.extremes = [order[0], order[-1]]
+
+        self.earlier_order = []
         self.frequency_cutoff = kwargs.get('frequency_cutoff', None)
         self.drop_ambiguous = kwargs.get('drop_ambiguous', True)
         self.ambiguous_values = kwargs.get(
             'ambiguous_values',
-            {"None of the above",
-             "Not sure",
-             "I don't know, I do not have a point of reference"
+            {"none of the above",
+             "not sure",
+             "other",
+             "i don't know, i do not have a point of reference"
              })
+
+    def _update_order(self, remap_):
+        """Updates the order and earlier order arguments"""
+        order = copy.copy(self.order)
+        self.earlier_order.append(order)
+        self.order = []
+        for o in order:
+            new_o = remap_(o)
+            if new_o not in self.order and not pd.isnull(new_o):
+                self.order.append(new_o)
+        self.extremes = [remap_(e) for e in self.extremes]
 
     def remove_ambiguity(self, map_):
         """Removes ambiguous groups from the mapping file"""
@@ -101,13 +129,13 @@ class AgCategorical(AgQuestion):
             self.remap_data_type(map_)
 
             def _remap(x):
-                if x in self.ambiguous_values:
+                if x.lower() in self.ambiguous_values:
                     return np.nan
                 else:
                     return x
 
             map_[self.name] = map_[self.name].apply(_remap)
-            self._update_groups(_remap)
+            self._update_order(_remap)
 
     def remap_groups(self, map_):
         """Remaps columns in the column"""
@@ -116,7 +144,7 @@ class AgCategorical(AgQuestion):
 
         if self.remap_ is not None:
             map_[self.name] = map_[self.name].apply(self.remap_)
-            self._update_groups(self.remap_)
+            self._update_order(self.remap_)
 
     def drop_infrequent(self, map_):
         """Removes groups below a frequency cutoff"""
@@ -133,21 +161,46 @@ class AgCategorical(AgQuestion):
                 return x
 
         map_[self.name] = map_[self.name].apply(_remap)
-        self._update_groups(_remap)
+        self._update_order(_remap)
 
-    def _update_groups(self, remap_):
-        self.earlier_groups.append(copy.copy(self.groups))
-        self.groups = (set([remap_(g) for g in self.earlier_groups[-1]]) -
-                       {np.nan})
+    def convert_to_numeric(self, map_):
+        self.check_map(map_)
+        order = {g: i for i, g in enumerate(self.order)}
+
+        def remap_(x):
+            if isinstance(x, (int, float)):
+                return x
+            elif x in order:
+                return order[x]
+            else:
+                return np.nan
+
+        map_[self.name] = map_[self.name].apply(remap_)
+        self._update_order(remap_)
+
+    def label_order(self, map_):
+        self.check_map(map_)
+        order = {g: '(%i) %s' % (i, g) for i, g in enumerate(self.order)}
+
+        def remap_(x):
+            if isinstance(x, (int, float)):
+                return x
+            elif x in order:
+                return order[x]
+            else:
+                return np.nan
+
+        map_[self.name] = map_[self.name].apply(remap_)
+        self._update_order(remap_)
 
 
 class AgBool(AgCategorical):
     def __init__(self, name, description, **kwargs):
         """..."""
-        AgCategorical.__init__(self, name, description, dtype=bool,
-                               groups={True, False}, **kwargs)
+        AgCategorical.__init__(self, name, description, bool,
+                               ['true', 'false'], **kwargs)
         self.type = 'Bool'
-        self.extremes = [True, False]
+        # self.extremes = ['true', 'false']
 
 
 class AgMultiple(AgBool):
@@ -185,13 +238,13 @@ class AgMultiple(AgBool):
 
 class AgClinical(AgCategorical):
     def __init__(self, name, description, strict=True, **kwargs):
-        groups = {'Diagnosed by a medical professional (doctor, physician '
-                  'assistant)',
-                  'Diagnosed by an alternative medicine practitioner',
-                  'Self-diagnosed',
-                  'I do not have this condition'
-                  }
-        AgCategorical.__init__(self, name, description, str, groups, **kwargs)
+        order = ['Diagnosed by a medical professional (doctor, physician '
+                 'assistant)',
+                 'Diagnosed by an alternative medicine practitioner',
+                 'Self-diagnosed',
+                 'I do not have this condition'
+                 ]
+        AgCategorical.__init__(self, name, description, str, order, **kwargs)
         self.strict = strict
         self.type = 'Clinical'
         self.extremes = ['I do not have this condition',
@@ -227,78 +280,20 @@ class AgClinical(AgCategorical):
                     return np.nan
 
         map_[self.name] = map_[self.name].apply(remap_)
-        self._update_groups(remap_)
+        self._update_order(remap_)
         self.extremes = ['No', 'Yes']
 
 
-class AgOrdinal(AgQuestion):
-    def __init__(self, name, description, dtype, order, **kwargs):
-        AgQuestion.__init__(self, name, description, dtype, **kwargs)
-        self.order = order
-        self.earlier_order = []
-        self.type = 'Ordinal'
-
-    def _update_order(self, remap_):
-        """Updates the order and earlier order arguments"""
-        order = copy.copy(self.order)
-        self.earlier_order.append(order)
-        self.order = []
-        for o in order:
-            new_o = remap_(o)
-            if new_o not in self.order:
-                self.order.append(new_o)
-
-    def remap_groups(self, map_):
-        """Remaps columns in the column"""
-        self.check_map(map_)
-        self.remap_data_type(map_)
-
-        if self.remap_ is not None:
-            map_[self.name] = map_[self.name].apply(self.remap_)
-            self._update_order(self.remap_)
-
-    def convert_to_numeric(self, map_):
-        self.check_map(map_)
-        order = {g: i for i, g in enumerate(self.order)}
-
-        def remap_(x):
-            if isinstance(x, (int, float)):
-                return x
-            elif x in order:
-                return order[x]
-            else:
-                return np.nan
-
-        map_[self.name] = map_[self.name].apply(remap_)
-        self._update_order(remap_)
-
-    def label_order(self, map_):
-        self.check_map(map_)
-        order = {g: '(%i) %s' % (i, g) for i, g in enumerate(self.order)}
-
-        def remap_(x):
-            if isinstance(x, (int, float)):
-                return x
-            elif x in order:
-                return order[x]
-            else:
-                return np.nan
-
-        map_[self.name] = map_[self.name].apply(remap_)
-        self._update_order(remap_)
-
-
-class AgFrequency(AgOrdinal):
+class AgFrequency(AgCategorical):
     def __init__(self, name, description, **kwargs):
         order = ['Never',
                  'Rarely (a few times/month)',
                  'Occasionally (1-2 times/week)',
                  'Regularly (3-5 times/week)',
                  'Daily']
-        AgOrdinal.__init__(self, name, description, dtype=str, order=order,
-                           **kwargs)
+        AgCategorical.__init__(self, name, description, dtype=str, order=order,
+                               **kwargs)
         self.type = 'Frequency'
-        self.extremes = kwargs.get('extremes', ['Never', 'Daily'])
 
     def clean(self, map_):
         self.check_map(map_)
@@ -311,10 +306,15 @@ class AgFrequency(AgOrdinal):
 
         map_[self.name] = map_[self.name].apply(remap_)
         self._update_order(remap_)
+        if 'Less than once/week' in set(map_[self.name]):
+            self.order = ['Never',
+                          'Less than once/week',
+                          '1-2 times/week',
+                          '3-5 times/week',
+                          'Daily']
 
 
 class AgContinous(AgQuestion):
-    type = 'Continous'
 
     def __init__(self, name, description, unit=None, **kwargs):
         AgQuestion.__init__(self, name, description, float, **kwargs)
@@ -325,6 +325,7 @@ class AgContinous(AgQuestion):
                              'the upper!')
         self.lower = lower
         self.upper = upper
+        self.type = 'Continous'
 
     def drop_outliers(self, map_):
         self.check_map(map_)
@@ -419,8 +420,26 @@ def _remap_diet(x):
     else:
         return x
 
+
+def _remap_fed_as_infant(x):
+    if x == 'Primarily breast milk':
+        return 'Breast milk'
+    elif x == 'Primarily infant formula':
+        return 'Formula'
+    elif x == 'A mixture of breast milk and formula':
+        return 'Mix'
+    else:
+        return x
+
+
+def _remap_country(x):
+    if x in {'United Kingdom', 'Jersey', 'Isle of Man', 'Ireland', 'Scotland'}:
+        return 'British Isles'
+    else:
+        return x
+
 ag_data_dictionary = {
-    'AGE_CAT': AgOrdinal(
+    'AGE_CAT': AgCategorical(
         name='AGE_CAT',
         description=("Age categorized by decade, with the exception of babies "
                      "(0-2 years), children (3-12 years) and teens "
@@ -458,39 +477,39 @@ ag_data_dictionary = {
         description='TThe participant consumes white wine',
         unspecified='ALCOHOL_TYPES_UNSPECIFIED',
         ),
-    'ANTIBIOTIC_HISTORY': AgOrdinal(
+    'ANTIBIOTIC_HISTORY': AgCategorical(
         name='ANTIBIOTIC_HISTORY',
         description=('How recently has the participant taken antibiotics?'),
         dtype=str,
         order=['Week', 'Month', '6 months', 'Year',
                'I have not taken antibiotics in the past year'],
         remap=_remap_abx,
-        extremes=['Week', 'More than a year'],
         ),
-    'BMI_CAT': AgOrdinal(
+    'BMI_CAT': AgCategorical(
         name='BMI_CAT',
         description='The body mass index, categorized according to the WHO.',
         dtype=str,
         order=['Underweight', 'Normal', 'Overweight', 'Obese'],
         extremes=['Normal', 'Obese'],
         ),
-    'BOWEL_MOVEMENT_FREQUENCY': AgOrdinal(
+    'BOWEL_MOVEMENT_FREQUENCY': AgCategorical(
         name='BOWEL_MOVEMENT_FREQUENCY',
         description=('Number of daily bowel movements'),
         dtype=str,
         order=['Less than one', 'One', 'Two', 'Three', 'Four', 'Five or more'],
         remap=_remap_bowel_frequency,
-        extremes=['Less than One', 'Four or more'],
+        extremes=['Less than One', 'Five or more'],
         ),
     'BOWEL_MOVEMENT_QUALITY': AgCategorical(
         name='BOWEL_MOVEMENT_QUALITY',
         description=('Does the participant tend toward constipation or '
                      'diarrhea?'),
         dtype=str,
-        groups={"I don't know, I do not have a point of reference",
-                'I tend to be constipated (have difficulty passing stool)',
-                'I tend to have diarrhea (watery stool)',
-                'I tend to have normal formed stool'},
+        order=['I tend to have normal formed stool',
+               "I don't know, I do not have a point of reference",
+               'I tend to be constipated (have difficulty passing stool)',
+               'I tend to have diarrhea (watery stool)',
+               ],
         remap=_remap_fecal_quality,
         extremes=['Normal', 'Diarrhea'],
         ),
@@ -498,11 +517,13 @@ ag_data_dictionary = {
         name='CAT',
         description='Does the participant have a pet cat?',
         ),
-    'CHICKENPOX': AgBool(
+    'CHICKENPOX': AgCategorical(
         name='CHICKENPOX',
-        description='Has the participant has chickenpox?'
+        description='Has the participant has chickenpox?',
+        dtype=str,
+        order=['No', 'Not sure', 'Yes'],
         ),
-    'COLLECTION_SEASON': AgOrdinal(
+    'COLLECTION_SEASON': AgCategorical(
         name='COLLECTION_SEASON',
         dtype=str,
         description=("Season in which the sample was collected. Winter: "
@@ -511,7 +532,7 @@ ag_data_dictionary = {
         order=['Winter', 'Spring', 'Summer', 'Fall'],
         extremes=['Winter', 'Summer']
         ),
-    'COLLECTION_MONTH': AgOrdinal(
+    'COLLECTION_MONTH': AgCategorical(
         name='COLLECTION_MONTH',
         description=('Month in which the sample was collected'),
         dtype=str,
@@ -519,13 +540,14 @@ ag_data_dictionary = {
                'July', 'August', 'September', 'October', 'November',
                'December'
                ],
+        extremes=['January', 'July'],
         ),
     'CONSUME_ANIMAL_PRODUCTS_ABX': AgCategorical(
         name="CONSUME_ANIMAL_PRODUCTS_ABX",
         description=("Does the participant eat animal products treated with "
                      "antibiotics?"),
         dtype=str,
-        groups={'Yes', 'No', 'Not sure'},
+        order=['No', 'Not sure', 'Yes'],
         extremes=['Yes', 'No'],
         ),
     'COUNTRY': AgCategorical(
@@ -534,12 +556,12 @@ ag_data_dictionary = {
         dtype=str,
         ontology='GAZ',
         mimmarks=True,
-        groups={'Australia', 'Belgium', 'Brazil', 'Canada', 'China',
-                'Czech Republic', 'Denmark', 'Finland', 'France', 'Germany',
-                'Ireland', 'Isle of Man', 'Italy', 'Japan', 'Jersey',
-                'Netherlands', 'New Zealand', 'Norway', 'Poland', 'Spain',
-                'Sweden', 'Switzerland', 'Thailand', 'USA',
-                'United Arab Emirates', 'United Kingdom'},
+        order=['Australia', 'Belgium', 'Brazil', 'Canada', 'China',
+               'Czech Republic', 'Denmark', 'Finland', 'France', 'Germany',
+               'Ireland', 'Isle of Man', 'Italy', 'Japan', 'Jersey',
+               'Netherlands', 'New Zealand', 'Norway', 'Poland', 'Spain',
+               'Sweden', 'Switzerland', 'Thailand', 'USA',
+               'United Arab Emirates', 'United Kingdom'],
         extremes=['US', 'United Kingdom'],
         frequency_cutoff=50,
         ),
@@ -547,25 +569,25 @@ ag_data_dictionary = {
         name="CONTRACEPTIVE",
         description="Does the participant use contraceptives?",
         dtype=str,
-        groups={'No', 'Yes, I am taking the pill',
-                'Yes, I use a contraceptive patch (Ortho-Evra)',
-                'Yes, I use a hormonal IUD (Mirena)',
-                'Yes, I use an injected contraceptive (DMPA)',
-                'Yes, I use the NuvaRing'},
+        order={'No', 'Yes, I am taking the pill',
+               'Yes, I use a contraceptive patch (Ortho-Evra)',
+               'Yes, I use a hormonal IUD (Mirena)',
+               'Yes, I use an injected contraceptive (DMPA)',
+               'Yes, I use the NuvaRing'},
+        extremes=['No', 'Yes, I am taking the pill'],
         remap=_remap_contraceptive,
         ),
     'CSECTION': AgCategorical(
         name="CSECTION",
         description=("Was the participant born via c-section?"),
         dtype=str,
-        groups={'Yes', 'No', 'Not sure'}
+        order=['No', 'Not sure', 'Yes']
         ),
     'DIABETES': AgClinical(
         name="DIABETES",
         description=("Has the participant been diganosed with diabetes"),
-        extremes=["No", "Yes"],
         ),
-    'DIET_TYPE': AgOrdinal(
+    'DIET_TYPE': AgCategorical(
         name="DIET_TYPE",
         description=(""),
         dtype=str,
@@ -578,7 +600,7 @@ ag_data_dictionary = {
         name="DRINKING_WATER_SOURCE",
         description="Primary source of water",
         dtype=str,
-        groups={'Bottled', 'City', 'Filtered', 'Not sure', 'Well'},
+        order=['Bottled', 'City', 'Filtered', 'Not sure', 'Well'],
         extreme=['Bottled', 'Well'],
         ),
     'EXERCISE_FREQUENCY': AgFrequency(
@@ -589,17 +611,19 @@ ag_data_dictionary = {
         name="EXERCISE_LOCATION",
         description=("Primary exercise location - indoor, outdoor, both"),
         dtype=str,
-        groups={'Both', 'Depends on the season', 'Indoors',
-                'None of the above', 'Outdoors'},
+        order=['Indoors', 'Both', 'Depends on the season',
+               'None of the above', 'Outdoors'],
         extremes=['Indoors', 'Outdoors'],
         ),
     'FED_AS_INFANT': AgCategorical(
         name='FED_AS_INFANT',
         description='Food source as an infant (breast milk or formula)',
         dtype=str,
-        groups={'A mixture of breast milk and formula', 'Not sure',
-                'Primarily breast milk', 'Primarily infant formula'},
+        order=['Primarily breast milk',
+               'A mixture of breast milk and formula', 'Not sure',
+               'Primarily infant formula'],
         extremes=['Primarily breast milk', 'Primarily infant formula'],
+        remap=_remap_fed_as_infant,
         ),
     'FERMENTED_PLANT_FREQUENCY': AgFrequency(
         name='FERMENTED_PLANT_FREQUENCY',
@@ -619,10 +643,11 @@ ag_data_dictionary = {
         name="GLUTEN",
         description=("Why does the participant follow a gluten free diet?"),
         dtype=str,
-        groups={'I was diagnosed with celiac disease', 'No',
-                'I do not eat gluten because it makes me feel bad',
-                'I was diagnosed with gluten allergy (anti-gluten IgG),'
-                ' but not celiac disease'},
+        order=['I was diagnosed with celiac disease',
+               'I do not eat gluten because it makes me feel bad',
+               'I was diagnosed with gluten allergy (anti-gluten IgG),'
+               ' but not celiac disease',
+               'No'],
         extremes=['No', 'Celiac Disease'],
         remap=_remap_gluten
         ),
@@ -630,6 +655,7 @@ ag_data_dictionary = {
         name='HOMECOOKED_MEALS_FREQUENCY',
         description=("How often does the participant consume meals cooked"
                      " at home?"),
+        remap=_remap_pool_frequency,
         ),
     'IBD': AgClinical(
         name='IBD',
@@ -641,7 +667,7 @@ ag_data_dictionary = {
         name="LACTOSE",
         description=("Is the participant lactose intolerant?"),
         ),
-    'LAST_TRAVEL': AgOrdinal(
+    'LAST_TRAVEL': AgCategorical(
         name="LAST_TRAVEL",
         description=("When the participant last traveled away from home"),
         dtype=str,
@@ -680,7 +706,7 @@ ag_data_dictionary = {
         name="POOL_FREQUENCY",
         description=("How often the participant uses a pool or hot tub"),
         remap_=_remap_pool_frequency,
-        extremes=["Never", "More than once a week"]
+        extremes=["Never", "Daily"]
         ),
     'PREPARED_MEALS_FREQUENCY': AgFrequency(
         name="PREPARED_MEALS_FREQUENCY",
@@ -695,8 +721,9 @@ ag_data_dictionary = {
         name="RACE",
         description=("Participant's race or ethnicity"),
         dtype=str,
-        groups={'Hispanic', 'African American', 'Other',
-                'Caucasian', 'Asian or Pacific Islander'},
+        order=['Hispanic', 'African American', 'Other',
+               'Caucasian', 'Asian or Pacific Islander'],
+        frequency_cutoff=50,
         ),
     'SEASONAL_ALLERGIES': AgBool(
         name="SEASONAL_ALLERGIES",
@@ -707,30 +734,30 @@ ag_data_dictionary = {
         description=("MIMARKS standard field - participant biological "
                      "sex, not sexual identity"),
         dtype=str,
-        groups={'female', 'male', 'other'},
+        order=['female', 'other', 'male'],
         mimmarks=True,
-        extreme=['male', 'female']
+        extreme=['male', 'female'],
         ),
-    "SLEEP_DURATION": AgOrdinal(
+    "SLEEP_DURATION": AgCategorical(
         name="SLEEP_DURATION",
         description=("How long the participant sleeps in the average night?"),
         dtype=str,
         order=['Less than 5 hours', '5-6 hours', '6-7 hours', '7-8 hours',
                '8 or more hours'],
         remap=_remap_sleep,
-        extreme=['Less than 6 hours', '8 or more hours'],
+        extreme=['Less than 5 hours', '8 or more hours'],
         ),
     'SMOKING_FREQUENCY': AgFrequency(
         name="SMOKING_FREQUENCY",
         description="How often the participant smokes?",
         remap=_remap_pool_frequency
         ),
-    'SUGARY_SWEET_FREQUENCY': AgFrequency(
-        name="SUGARY_SWEET_FREQUENCY",
+    'SUGARY_SWEETS_FREQUENCY': AgFrequency(
+        name="SUGARY_SWEETS_FREQUENCY",
         description=("how often does the participant eat sweets (candy, "
                      "ice-cream, pastries etc)?"),
         ),
-    'TYPES_OF_PLANTS': AgOrdinal(
+    'TYPES_OF_PLANTS': AgCategorical(
         name="TYPES_OF_PLANTS",
         description=("Number of plant species eaten in week of observation"),
         dtype=str,
@@ -742,13 +769,13 @@ ag_data_dictionary = {
         name="VEGETABLE_FREQUENCY",
         description=("How many times a week the participant eats vegetables"),
         ),
-    'VEGETABLE_FREQUENCY': AgFrequency(
+    'VITAMIN_B_SUPPLEMENT_FREQUENCY': AgFrequency(
         name="VITAMIN_B_SUPPLEMENT_FREQUENCY",
         description=("How often the participant takes a vitamin B or "
                      "vitamin B complex supplement"),
         ),
-    'VEGETABLE_FREQUENCY': AgFrequency(
-        name="VITAMIN_B_SUPPLEMENT_FREQUENCY",
+    'VITAMIN_D_SUPPLEMENT_FREQUENCY': AgFrequency(
+        name="VITAMIN_D_SUPPLEMENT_FREQUENCY",
         description=("How often the participant takes a vitamin D supplement"),
         ),
     'WEIGHT_CHANGE': AgCategorical(
@@ -756,8 +783,8 @@ ag_data_dictionary = {
         description=("Has the participants weight has changed more than 10 "
                      "lbs in the past year?"),
         dtype=str,
-        groups={'Increased more than 10 pounds',
-                'Decreased more than 10 pounds', 'Remained stable'},
+        order=['Increased more than 10 pounds',
+               'Decreased more than 10 pounds', 'Remained stable'],
         extremes=['Remained stable', 'Increased more than 10 pounds']
         ),
     }

@@ -149,7 +149,7 @@ def pretty_pandas_boxplot(meta, group, metric, order=None, ax=None, notch=True,
                     'width': 0.65
                     }
     else:
-        snkwargs = {}
+        snkwargs = {'flierprops': {'markerfacecolor': 'k', 'marker': 'd'}}
 
     sn.boxplot(x=group,
                y=metric,
@@ -769,13 +769,12 @@ def beta_diversity_bars(dm, meta, group, order=None, ref_groups=None,
         The label text for the y-axis.
 
     Returns
-    -------
+    -------s
     ax : axes
         A matplotlib axes containing the plotted data
     """
     # Removes any undefined groups
-    map_ = meta.groupby(meta[group].apply(_check_strs)
-                        ).get_group(True)
+    map_ = meta.loc[meta[group].dropna().index]
     dm = dm.filter(map_.index)
 
     # Orders the objects
@@ -814,7 +813,7 @@ def beta_diversity_bars(dm, meta, group, order=None, ref_groups=None,
         dist_std = np.zeros((len(order)))
 
         dist_bar[ref_loc] = within[ref_group].mean()
-        dist_std[ref_loc] = within[ref_group].std()
+        dist_std[ref_loc] = within[ref_group].std() / np.sqrt(len(within[ref_group]))
 
         # Sets up the pvalues
         if p_table is None:
@@ -834,10 +833,10 @@ def beta_diversity_bars(dm, meta, group, order=None, ref_groups=None,
             # Gets the distance vector
             try:
                 dist_bar[id2] = between[(ref_group, group)].mean()
-                dist_std[id2] = between[(ref_group, group)].std()
+                dist_std[id2] = between[(ref_group, group)].std() / np.sqrt(len(between[ref_group, group]))
             except:
                 dist_bar[id2] = between[(group, ref_group)].mean()
-                dist_std[id2] = between[(group, ref_group)].std()
+                dist_std[id2] = between[(group, ref_group)].std() / np.sqrt(len(between[group, ref_group]))
             if p_values is not None:
                 p_value = _get_p_value(sub_p, sub_p_lookup, ref_group, group,
                                        p_tab_col)
@@ -861,6 +860,9 @@ def beta_diversity_bars(dm, meta, group, order=None, ref_groups=None,
                             match_colors=match_colors,
                             elinewidth=elinewidth,
                             ecapwidth=ecapwidth)
+
+        print xpos
+        print dist_bar + dist_std
         # Watches the xlimits
         if id1 == 0:
             xlim = [xpos[0] - interval*0.75]
@@ -1501,7 +1503,7 @@ def _format_axis(ax, **kwargs):
             tls = ticklabels_v
 
         if kwds['trim_labels']:
-            tls = [g.replace('/', '/\n') for g in tls]
+            tls = [str(g).replace('/', '/\n') for g in tls]
 
         axis.set_ticklabels(tls,
                             ha=kwds['%sfont_align' % name],
