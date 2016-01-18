@@ -389,8 +389,8 @@ def _remap_gluten(x):
 
 
 def _remap_last_travel(x):
-    if x == ('I have not been outside of my country of residence in'
-             ' the past year.'):
+    if x in {'I have not been outside of my country of residence in'
+             ' the past year.'}:
         return 'More than a year'
     else:
         return x
@@ -671,10 +671,11 @@ ag_data_dictionary = {
         name="LAST_TRAVEL",
         description=("When the participant last traveled away from home"),
         dtype=str,
-        order=['I have not been outside of my country of residence in the '
-               'past year.', '1 year', '6 months', '3 months', 'Month'],
+        order=['I have not been outside of my country of residence in'
+               ' the past year.', '1 year', '6 months', '3 months', 'Month'],
         remap_=_remap_last_travel,
-        extremes=['More than a year', 'Month'],
+        extremes=['I have not been outside of my country of residence in'
+                  ' the past year.', 'Month'],
         ),
     'LOWGRAIN_DIET_TYPE': AgBool(
         name="LOWGRAIN_DIET_TYPE",
