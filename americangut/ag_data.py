@@ -229,6 +229,33 @@ class AgData:
 
         return map_, otu_, beta
 
+    def clean_group(self, group):
+        """Leverages question structure to format the specified column in map_
+
+        Parameters
+        ----------
+        group : AgQuestion
+            An AqQuestion data dictionary object specifying the field
+            to be used.
+
+        """
+        if group.type == 'Continous':
+            group.drop_outliers(self.map_)
+        elif group.type in {'Bool', 'Multiple'}:
+            group.remap_data_type(self.map_)
+        elif group.type in {'Categorical', 'Clincial',
+                            'Frequency'}:
+            group.remove_ambiguity(self.map_)
+            group.remap_groups(self.map_)
+            group.drop_infrequent(self.map_)
+
+        if group.type == 'Multiple':
+            group.correct_unspecified(self.map_)
+        elif group.type == 'Clinical':
+            group.remap_clinical(self.map_)
+        elif group.type == 'Frequency':
+            group.clean(self.map_)
+
 
 class AgQuestion:
     true_values = {'yes', 'y', 'true', 1}
@@ -301,12 +328,16 @@ class AgQuestion:
             raise ValueError('%s is not a column in the supplied map!'
                              % self.name)
 
-    def remap_data_type(self, map_):
+    def remap_data_type(self, map_, watch=True):
         """Makes sure the target column in map_ has the correct datatype
 
         map_ : DataFrame
             A pandas dataframe containing the column described by the question
             name.
+        watch : bool
+            A flag to indicate the change should be logged. Should generally
+            be true, unless `remap_data_type` is called before another
+            function is executed.
 
         """
         if self.dtype == bool:
@@ -332,9 +363,10 @@ class AgQuestion:
                 return self.dtype(x)
 
         map_[self.name] = map_[self.name].apply(remap_).astype(self.dtype)
+        map_.replace('nan', np.nan, inplace=True)
 
-        if self.type in {'Categorical', 'Multiple', 'Clinical', 'Bool',
-                         'Frequency'}:
+        if watch and self.type in {'Categorical', 'Multiple', 'Clinical',
+                                   'Bool', 'Frequency'}:
             self._update_order(remap_)
 
 
@@ -394,9 +426,7 @@ class AgCategorical(AgQuestion):
         self.drop_ambiguous = kwargs.get('drop_ambiguous', True)
         self.ambiguous_values = kwargs.get(
             'ambiguous_values',
-            {"none of the above",
-             "not sure",
-             "other",
+            {"none of the above", "not sure", "other", 'nan',
              "i don't know, i do not have a point of reference"
              })
 
@@ -423,7 +453,7 @@ class AgCategorical(AgQuestion):
         """
         if self.drop_ambiguous:
             self.check_map(map_)
-            self.remap_data_type(map_)
+            self.remap_data_type(map_, watch=False)
 
             def _remap(x):
                 if x.lower() in self.ambiguous_values:
@@ -431,7 +461,8 @@ class AgCategorical(AgQuestion):
                 else:
                     return x
 
-            map_[self.name] = map_[self.name].apply(_remap)
+            index = map_[self.name].dropna().index
+            map_[self.name] = map_.loc[index, self.name].apply(_remap)
             self._update_order(_remap)
 
     def remap_groups(self, map_):
@@ -445,10 +476,11 @@ class AgCategorical(AgQuestion):
 
         """
         self.check_map(map_)
-        self.remap_data_type(map_)
+        self.remap_data_type(map_, watch=False)
 
         if self.remap_ is not None:
-            map_[self.name] = map_[self.name].apply(self.remap_)
+            index = map_[self.name].dropna().index
+            map_[self.name] = map_.loc[index, self.name].apply(self.remap_)
             self._update_order(self.remap_)
 
     def drop_infrequent(self, map_):
@@ -462,7 +494,7 @@ class AgCategorical(AgQuestion):
 
         """
         self.check_map(map_)
-        self.remap_data_type(map_)
+        self.remap_data_type(map_, watch=False)
 
         counts = map_.groupby(self.name).count().max(1)
         below = counts.loc[counts <= self.frequency_cutoff].index
@@ -472,8 +504,8 @@ class AgCategorical(AgQuestion):
                 return np.nan
             else:
                 return x
-
-        map_[self.name] = map_[self.name].apply(_remap)
+        index = map_[self.name].dropna().index
+        map_[self.name] = map_.loc[index, self.name].apply(_remap)
         self._update_order(_remap)
 
     def convert_to_numeric(self, map_):
@@ -587,7 +619,7 @@ class AgMultiple(AgBool):
     def correct_unspecified(self, map_):
         """Corrects column for missing responses"""
         self.check_map(map_)
-        self.remap_data_type(map_)
+        self.remap_data_type(map_, watch=False)
         if self.unspecified not in map_.columns:
             raise ValueError('The unspecified reference (%s) is not a column'
                              ' in the metadata!' % self.unspecified)
@@ -609,6 +641,7 @@ class AgMultiple(AgBool):
             map_[self.unspecified] = map_[self.unspecified].apply(remap_)
             map_[self.unspecified] = map_[self.unspecified].astype(bool)
         map_.loc[map_[self.unspecified], self.name] = np.nan
+        self._update_order(remap_)
 
 
 class AgClinical(AgCategorical):
@@ -650,7 +683,6 @@ class AgClinical(AgCategorical):
     def remap_clinical(self, map_):
         """Converts the clincial condtion to a boolean value"""
         self.check_map(map_)
-        self.remap_data_type(map_)
         if self.strict:
             def remap_(x):
                 if x in {'Diagnosed by a medical professional (doctor, '
@@ -761,7 +793,7 @@ class AgContinous(AgQuestion):
     def drop_outliers(self, map_):
         """Removes datapoints outside of the `range`"""
         self.check_map(map_)
-        self.remap_data_type(map_)
+        self.remap_data_type(map_, watch=False)
 
         if self.lower is not None:
 
