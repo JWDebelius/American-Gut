@@ -2130,6 +2130,42 @@ def activate(chp):
     return path
 
 
+def check_save_dir(dataset, base_dir=None):
+    """Creates a save directory
+
+    Parameters
+    ----------
+    dataset : AgData
+        An object describing the dataset
+    base_dir : path
+        The location where data should be saved, if not in the
+        respository along side notebooks
+
+    Returns
+    -------
+    save_path : str
+        A directory where data should be saved
+    """
+    # Sets up the base directory
+    if base_dir is None:
+        base_dir = os.path.join(ag.WORKING_DIR.split('American-Gut')[0],
+                                'American-Gut/ipynb/diversity-analysis')
+    base_dir = get_existing_path(base_dir)
+
+    # Builds the subsequent directory structure
+    save_dir = os.path.join(
+        base_dir,
+        'results/%(bodysite)s/%(sequence_trim)s/%(participant_set)s/'
+        '%(samples_per_participants)s/%(rarefaction_depth)s'
+        % dataset
+        )
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    return save_dir
+
+
 def get_sortmerna_index():
     """Return the absolute path of a SortMeRNA index if available"""
     return os.environ.get('AG_SMR_INDEX')
