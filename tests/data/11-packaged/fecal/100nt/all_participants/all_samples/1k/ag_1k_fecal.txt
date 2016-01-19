@@ -1,0 +1,4 @@
+#SampleID	AGE_YEARS	ALCOHOL_FREQUENCY	ALCOHOL_TYPES_BEERCIDER	ALCOHOL_TYPES_UNSPECIFIED	BMI	BMI_CAT	IBD	PD_whole_tree_1k	shannon_1k	chao1_1k	observed_otus_1k
+10317.000007108	60	Daily	false	true	25.13	Overweight	I do not have this condition	2.866733	2.49309705457	9.15	7.6
+10317.000005844	57.0	Occasionally (1-2 times/week)	false	true	26.73	Overweight	I do not have this condition	2.198198	1.83213159668	5.65	5.1
+10317.000002035	34.0	Rarely (a few times/month)	false	true	19.27	Normal	None	1.932658	0.970334630884	4.05	3.9
