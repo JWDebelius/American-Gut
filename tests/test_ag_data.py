@@ -476,9 +476,12 @@ class AgDataTest(TestCase):
             description=('Has the participant described their alcohol use'),
             )
 
+        known_order = [['true', 'false'], [True, False]]
+
         self.ag_data.clean_group(question)
-        self.assertEquals(set(self.ag_data.map_[question.name]) - {np.nan},
-                          {True, False})
+        self.assertEqual(set(self.ag_data.map_[question.name]) - {np.nan},
+                         {'yes', 'no'})
+        self.assertEqual(question.earlier_order, known_order)
 
     def test_clean_group_categorical(self):
         map_ = pd.DataFrame(
@@ -561,7 +564,7 @@ class AgDataTest(TestCase):
             unspecified='ALCOHOL_TYPES_UNSPECIFIED',
             )
 
-        known_order = [['true', 'false'], [True, False]]
+        known_order = [['true', 'false'], [True, False], ['yes', 'no']]
         self.assertEqual(np.sum(pd.isnull(self.ag_data.map_[question.name])),
                          0)
         self.ag_data.clean_group(question)
@@ -976,6 +979,12 @@ class AgBoolTest(TestCase):
             description=self.description,
             unspecified=self.unspecified)
         self.assertEqual(test.unspecified, self.unspecified)
+
+    def test_ag_bool_convert_to_string(self):
+        self.ag_bool.convert_to_string(self.map_)
+        self.assertEqual(set(self.map_[self.ag_bool.name]) - {np.nan},
+                         {'yes', 'no'})
+        self.assertEqual(self.ag_bool.earlier_order, [['true', 'false']])
 
     def test_ag_multiple_correct_unspecified(self):
         self.ag_multiple.remap_data_type(self.map_)

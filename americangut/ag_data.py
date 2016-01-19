@@ -243,6 +243,7 @@ class AgData:
             group.drop_outliers(self.map_)
         elif group.type in {'Bool', 'Multiple'}:
             group.remap_data_type(self.map_)
+            group.convert_to_string(self.map_)
         elif group.type in {'Categorical', 'Clincial',
                             'Frequency'}:
             group.remove_ambiguity(self.map_)
@@ -580,6 +581,21 @@ class AgBool(AgCategorical):
         AgCategorical.__init__(self, name, description, bool,
                                ['true', 'false'], **kwargs)
         self.type = 'Bool'
+
+    def convert_to_string(self, map_):
+        self.check_map(map_)
+        self.remap_data_type(map_, watch=False)
+
+        def remap_(x):
+            if x:
+                return 'yes'
+            elif ~ x:
+                return 'no'
+            else:
+                return np.nan
+
+        map_[self.name] = map_[self.name].apply(remap_)
+        self._update_order(remap_)
 
 
 class AgMultiple(AgBool):
