@@ -463,7 +463,6 @@ class AgQuestionTest(TestCase):
         self.assertEqual(test.free_response, False)
         self.assertEqual(test.mimmarks, False)
         self.assertEqual(test.ontology, None)
-        self.assertEqual(test.subset, True)
         self.assertEqual(test.remap_, None)
 
     def test_init_kwargs(self):
@@ -473,7 +472,6 @@ class AgQuestionTest(TestCase):
                           mimmarks=True,
                           ontology='GAZ',
                           remap=self.fun,
-                          subset=False
                           )
 
         self.assertEqual(test.name, self.name)
@@ -483,7 +481,6 @@ class AgQuestionTest(TestCase):
         self.assertEqual(test.free_response, True)
         self.assertEqual(test.mimmarks, True)
         self.assertEqual(test.ontology, 'GAZ')
-        self.assertEqual(test.subset, False)
         self.assertEqual(test.remap_(1), 'foo')
 
     def test_init_name_error(self):
@@ -524,7 +521,9 @@ class AgCategoricalTest(TestCase):
                      "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
                      "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
             ).set_index('#SampleID')
-        self.map_.replace('', np.nan, inplace=True)
+        self.map_.replace([''], np.nan, inplace=True)
+        self.map_.replace(['None'], np.nan, inplace=True)
+        self.map_.replace(['nan'], np.nan, inplace=True)
 
         self.name = 'BOWEL_MOVEMENT_QUALITY'
         self.description = ('Whether the participant is constipated, has '
@@ -643,11 +642,11 @@ class AgCategoricalTest(TestCase):
         self.ag_categorical.drop_ambiguous = True
         self.ag_categorical.remove_ambiguity(self.map_)
 
-        self.assertEqual(set(self.map_[self.ag_categorical.name]) - {np.nan}, {
-            "I tend to be constipated (have difficulty passing stool)",
-            "I tend to have diarrhea (watery stool)",
-            "I tend to have normal formed stool",
-            })
+        self.assertEqual(set(self.map_[self.ag_categorical.name]) - {np.nan},
+                         {"I tend to be constipated (have difficulty "
+                          "passing stool)", "I tend to have diarrhea "
+                          "(watery stool)", "I tend to have normal formed "
+                          "stool"})
 
     def test_ag_categorical_remap_groups(self):
         self.ag_categorical.remap_groups(self.map_)
@@ -656,7 +655,8 @@ class AgCategoricalTest(TestCase):
                          {'No Reference', 'Well formed', 'Constipated',
                           'Diarrhea'})
 
-        self.assertEqual(self.ag_categorical.earlier_order, [self.order])
+        self.assertEqual(self.ag_categorical.earlier_order,
+                         [self.order, self.order])
 
     def test_ag_categorical_drop_infrequent(self):
         self.ag_categorical.frequency_cutoff = 4
@@ -669,7 +669,7 @@ class AgCategoricalTest(TestCase):
     def test_ag_clinical_remap_strict(self):
         self.ag_clinical.remap_clinical(self.map_)
 
-        count = pd.Series([14, 5],
+        count = pd.Series([14, 4],
                           index=pd.Index(['No', 'Yes'], name='IBD'),
                           dtype=np.int64)
         pdt.assert_series_equal(count, self.map_.groupby('IBD').count().max(1))
@@ -678,7 +678,7 @@ class AgCategoricalTest(TestCase):
         self.ag_clinical.strict = False
         self.ag_clinical.remap_clinical(self.map_)
 
-        count = pd.Series([14, 4],
+        count = pd.Series([14, 5],
                           index=pd.Index(['No', 'Yes'], name='IBD'),
                           dtype=np.int64)
         pdt.assert_series_equal(count, self.map_.groupby('IBD').count().max(1))

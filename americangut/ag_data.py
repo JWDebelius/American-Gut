@@ -397,7 +397,8 @@ class AgCategorical(AgQuestion):
             {"none of the above",
              "not sure",
              "other",
-             "i don't know, i do not have a point of reference"
+             "i don't know, i do not have a point of reference",
+             'nan'
              })
 
     def _update_order(self, remap_):
@@ -447,8 +448,11 @@ class AgCategorical(AgQuestion):
         self.check_map(map_)
         self.remap_data_type(map_)
 
+        undefined = pd.isnull(map_[self.name])
+
         if self.remap_ is not None:
             map_[self.name] = map_[self.name].apply(self.remap_)
+            map_.replace('nan', np.nan, inplace=True)
             self._update_order(self.remap_)
 
     def drop_infrequent(self, map_):
@@ -474,6 +478,7 @@ class AgCategorical(AgQuestion):
                 return x
 
         map_[self.name] = map_[self.name].apply(_remap)
+        map_.replace('nan', np.nan, inplace=True)
         self._update_order(_remap)
 
     def convert_to_numeric(self, map_):
