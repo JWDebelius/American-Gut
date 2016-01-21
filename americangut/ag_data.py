@@ -239,28 +239,33 @@ class AgData:
             to be used.
 
         """
+
         if group.type == 'Continous':
             group.drop_outliers(self.map_)
+
         elif group.type in {'Bool', 'Multiple'}:
             group.remap_data_type(self.map_)
-            group.convert_to_string(self.map_)
-        elif group.type in {'Categorical', 'Clincial',
-                            'Frequency'}:
+            group.convert_to_word(self.map_)
+
+        elif group.type == 'Categorical':
             group.remove_ambiguity(self.map_)
             group.remap_groups(self.map_)
             group.drop_infrequent(self.map_)
 
-        if group.type == 'Multiple':
-            group.correct_unspecified(self.map_)
         elif group.type == 'Clinical':
             group.remap_clinical(self.map_)
+
         elif group.type == 'Frequency':
             group.clean(self.map_)
+            group.combine_frequency(self.map_)
+
+        if group.type == 'Multiple':
+            group.correct_unspecified(self.map_)
 
 
 class AgQuestion:
-    true_values = {'yes', 'y', 'true', 1}
-    false_values = {'no', 'n', 'false', 0}
+    true_values = {'yes', 'y', 'true', 1, 1.0, 'Y', 'YES', 'Yes', True}
+    false_values = {'no', 'n', 'false', 0, 0.0, 'N', 'NO', 'No', False}
 
     def __init__(self, name, description, dtype, clean_name=None, **kwargs):
         """A base object for describing single question outputs
@@ -497,14 +502,16 @@ class AgCategorical(AgQuestion):
         self.check_map(map_)
         self.remap_data_type(map_, watch=False)
 
-        counts = map_.groupby(self.name).count().max(1)
-        below = counts.loc[counts <= self.frequency_cutoff].index
+        counts = map_.groupby(self.name).count().max(1)[self.order]
+        below_locs = (counts <= self.frequency_cutoff) | pd.isnull(counts)
+        below = counts.loc[below_locs].index
 
         def _remap(x):
             if x in below:
                 return np.nan
             else:
                 return x
+
         index = map_[self.name].dropna().index
         map_[self.name] = map_.loc[index, self.name].apply(_remap)
         self._update_order(_remap)
@@ -582,14 +589,20 @@ class AgBool(AgCategorical):
                                ['true', 'false'], **kwargs)
         self.type = 'Bool'
 
-    def convert_to_string(self, map_):
+    def convert_to_word(self, map_):
+        """Converts boolean values to 'yes' and 'no'
+
+         map_ : DataFrame
+            A pandas dataframe containing the column described by the question
+            name.
+        """
         self.check_map(map_)
         self.remap_data_type(map_, watch=False)
 
         def remap_(x):
-            if x:
+            if x in self.true_values:
                 return 'yes'
-            elif ~ x:
+            elif x in self.false_values:
                 return 'no'
             else:
                 return np.nan
@@ -633,31 +646,29 @@ class AgMultiple(AgBool):
         self.unspecified = unspecified
 
     def correct_unspecified(self, map_):
-        """Corrects column for missing responses"""
+        """Corrects column for missing responses
+
+        map_ : DataFrame
+            A pandas dataframe containing the column described by the question
+            name.
+        """
         self.check_map(map_)
-        self.remap_data_type(map_, watch=False)
         if self.unspecified not in map_.columns:
             raise ValueError('The unspecified reference (%s) is not a column'
                              ' in the metadata!' % self.unspecified)
 
         def remap_(x):
-            if isinstance(x, str) and x.lower() in self.true_values:
+            if x in self.true_values:
                 return True
-            elif isinstance(x, str) and x.lower() in self.false_values:
+            elif x in self.false_values:
                 return False
-            elif np.isnan(x):
-                return x
             else:
-                try:
-                    return bool(x)
-                except:
-                    return np.nan
+                return np.nan
 
-        if not map_[self.unspecified].dtype == np.bool_:
-            map_[self.unspecified] = map_[self.unspecified].apply(remap_)
-            map_[self.unspecified] = map_[self.unspecified].astype(bool)
+        map_[self.unspecified] = \
+            map_[self.unspecified].apply(remap_).astype(bool)
+
         map_.loc[map_[self.unspecified], self.name] = np.nan
-        self._update_order(remap_)
 
 
 class AgClinical(AgCategorical):
@@ -697,7 +708,13 @@ class AgClinical(AgCategorical):
                          'physician assistant)']
 
     def remap_clinical(self, map_):
-        """Converts the clincial condtion to a boolean value"""
+        """Converts the clincial condtion to a boolean value
+
+        map_ : DataFrame
+            A pandas dataframe containing the column described by the question
+            name.
+
+        """
         self.check_map(map_)
         if self.strict:
             def remap_(x):
@@ -730,7 +747,7 @@ class AgClinical(AgCategorical):
 
 
 class AgFrequency(AgCategorical):
-    def __init__(self, name, description, **kwargs):
+    def __init__(self, name, description, order=None, combine=None, **kwargs):
         """
         A question object for frequency questions relating to weekly occurance
 
@@ -740,22 +757,38 @@ class AgFrequency(AgCategorical):
             The name of column where the group is stored
         description : str
             A brief description of the data contained in the question
+        combine : {None, 'rarely', 'weekly'}
+            Whether the frequency values should be combined. `None` will lead
+            the data uneffected. `'rarely'` will combine infrequent (`'Never'`
+            and `'Rarely (a few times/month)'`). `weekly` will combine
+            occurances more than once a week
+            (`'Occasionally (1-2 times/week)'`, `'Regularly (3-5 times/week)'`,
+            and `'Daily'`).
+
         clean_name : str, optional
             A nicer version of the way the column should be named.
         remap : function
             A function used to remap the data in the question.
         """
-        order = ['Never',
-                 'Rarely (a few times/month)',
-                 'Occasionally (1-2 times/week)',
-                 'Regularly (3-5 times/week)',
-                 'Daily']
+        if order is None:
+            order = ['Never',
+                     'Rarely (a few times/month)',
+                     'Occasionally (1-2 times/week)',
+                     'Regularly (3-5 times/week)',
+                     'Daily']
         AgCategorical.__init__(self, name, description, dtype=str, order=order,
                                **kwargs)
         self.type = 'Frequency'
+        self.combine = combine
 
     def clean(self, map_):
-        """Converts the frequency values to shorter strings"""
+        """Converts the frequency values to shorter strings
+
+        map_ : DataFrame
+            A pandas dataframe containing the column described by the question
+            name.
+
+        """
         self.check_map(map_)
 
         def remap_(x):
@@ -766,12 +799,39 @@ class AgFrequency(AgCategorical):
 
         map_[self.name] = map_[self.name].apply(remap_)
         self._update_order(remap_)
-        if 'Less than once/week' in set(map_[self.name]):
-            self.order = ['Never',
-                          'Less than once/week',
-                          '1-2 times/week',
-                          '3-5 times/week',
-                          'Daily']
+
+    def combine_frequency(self, map_):
+        """Combines frequency responses using `self.
+
+         map_ : DataFrame
+            A pandas dataframe containing the column described by the question
+            name.
+        """
+        if self.combine not in {None, 'rarely', 'weekly'}:
+            raise ValueError('%s is not a supported value for combine.'
+                             % self.combine)
+
+        if self.combine == 'rarely':
+            def remap_(x):
+                if x in {'Never', 'Rarely (a few times/month)',
+                         'A few times/month',  'Less than once/week'}:
+                    return 'Less than once/week'
+                else:
+                    return x
+        elif self.combine == 'weekly':
+            def remap_(x):
+                if x in {'Occasionally (1-2 times/week)', '1-2 times/week',
+                         'Regularly (3-5 times/week)', '3-5 times/week',
+                         'Daily'}:
+                    return "More than once/week"
+                else:
+                    return x
+        elif self.combine is None:
+            def remap_(x):
+                return x
+
+        map_[self.name] = map_[self.name].apply(remap_)
+        self._update_order(remap_)
 
 
 class AgContinous(AgQuestion):
@@ -825,7 +885,8 @@ class AgContinous(AgQuestion):
 
 
 def _remap_abx(x):
-    if x == 'I have not taken antibiotics in the past year':
+    if x in {'I have not taken antibiotics in the past year.',
+             'I have not taken antibiotics in the past year'}:
         return 'More than a year'
     else:
         return x
@@ -919,6 +980,15 @@ def _remap_country(x):
         return x
 
 
+def _remap_weight(x):
+    if x == 'Increased more than 10 pounds':
+        return 'Weight gain'
+    elif x == 'Decreased more than 10 pounds':
+        return 'Weight loss'
+    else:
+        return x
+
+
 ag_data_dictionary = {
     'AGE_CAT': AgCategorical(
         name='AGE_CAT',
@@ -979,7 +1049,6 @@ ag_data_dictionary = {
         dtype=str,
         order=['Less than one', 'One', 'Two', 'Three', 'Four', 'Five or more'],
         remap=_remap_bowel_frequency,
-        extremes=['Less than One', 'Five or more'],
         ),
     'BOWEL_MOVEMENT_QUALITY': AgCategorical(
         name='BOWEL_MOVEMENT_QUALITY',
@@ -1043,7 +1112,7 @@ ag_data_dictionary = {
                'Netherlands', 'New Zealand', 'Norway', 'Poland', 'Spain',
                'Sweden', 'Switzerland', 'Thailand', 'USA',
                'United Arab Emirates', 'United Kingdom'],
-        extremes=['US', 'United Kingdom'],
+        extremes=['USA', 'United Kingdom'],
         frequency_cutoff=50,
         ),
     'CONTRACEPTIVE': AgCategorical(
@@ -1110,6 +1179,9 @@ ag_data_dictionary = {
         name='FERMENTED_PLANT_FREQUENCY',
         description=("Participant reported onsumption of at least one "
                      "serving of fermented vegetables or tea in a day"),
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily']
         ),
     'FLOSSING_FREQUENCY': AgFrequency(
         name='FLOSSING_FREQUENCY',
@@ -1119,6 +1191,9 @@ ag_data_dictionary = {
         name='FRUIT_FREQUENCY',
         description=("How often the participant consumes at least 2-3 "
                      "serving of fruit a day"),
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily']
         ),
     'GLUTEN': AgCategorical(
         name="GLUTEN",
@@ -1136,13 +1211,14 @@ ag_data_dictionary = {
         name='HOMECOOKED_MEALS_FREQUENCY',
         description=("How often does the participant consume meals cooked"
                      " at home?"),
-        remap=_remap_pool_frequency,
+        combine='rarely',
         ),
     'IBD': AgClinical(
         name='IBD',
         description=("Has the participant been diagnosed with inflammatory "
                      "bowel disease, include crohns disease or ulcerative "
                      "colitis?"),
+        clean_name='IBD',
         ),
     'LACTOSE': AgBool(
         name="LACTOSE",
@@ -1154,7 +1230,7 @@ ag_data_dictionary = {
         dtype=str,
         order=['I have not been outside of my country of residence in'
                ' the past year.', '1 year', '6 months', '3 months', 'Month'],
-        remap_=_remap_last_travel,
+        remap=_remap_last_travel,
         extremes=['I have not been outside of my country of residence in'
                   ' the past year.', 'Month'],
         ),
@@ -1178,22 +1254,33 @@ ag_data_dictionary = {
     'OLIVE_OIL': AgFrequency(
         name="OLIVE_OIL",
         description=("Frequency participant eats food cooked with Olive Oil"),
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily'],
         ),
     'ONE_LITER_OF_WATER_A_DAY_FREQUENCY': AgFrequency(
         name="ONE_LITER_OF_WATER_A_DAY_FREQUENCY",
         description=("How frequently does the participant consume at least"
                      " one liter of water"),
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily'],
+        combine='rarely'
         ),
     'POOL_FREQUENCY': AgFrequency(
         name="POOL_FREQUENCY",
         description=("How often the participant uses a pool or hot tub"),
-        remap_=_remap_pool_frequency,
+        combine='weekly',
         extremes=["Never", "Daily"]
         ),
     'PREPARED_MEALS_FREQUENCY': AgFrequency(
         name="PREPARED_MEALS_FREQUENCY",
         description=("frequency with which the participant eats out at a "
                      "resturaunt, including carryout"),
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily'],
+        clean_name='Resturaunt Frequency'
         ),
     'PROBIOTIC_FREQUENCY': AgFrequency(
         name="PROBIOTIC_FREQUENCY",
@@ -1232,12 +1319,15 @@ ag_data_dictionary = {
     'SMOKING_FREQUENCY': AgFrequency(
         name="SMOKING_FREQUENCY",
         description="How often the participant smokes?",
-        remap=_remap_pool_frequency
+        combine='weekly',
         ),
     'SUGARY_SWEETS_FREQUENCY': AgFrequency(
         name="SUGARY_SWEETS_FREQUENCY",
         description=("how often does the participant eat sweets (candy, "
                      "ice-cream, pastries etc)?"),
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily'],
         ),
     'TYPES_OF_PLANTS': AgCategorical(
         name="TYPES_OF_PLANTS",
@@ -1250,6 +1340,7 @@ ag_data_dictionary = {
     'VEGETABLE_FREQUENCY': AgFrequency(
         name="VEGETABLE_FREQUENCY",
         description=("How many times a week the participant eats vegetables"),
+        combine='rarely',
         ),
     'VITAMIN_B_SUPPLEMENT_FREQUENCY': AgFrequency(
         name="VITAMIN_B_SUPPLEMENT_FREQUENCY",
@@ -1267,6 +1358,7 @@ ag_data_dictionary = {
         dtype=str,
         order=['Increased more than 10 pounds',
                'Decreased more than 10 pounds', 'Remained stable'],
-        extremes=['Remained stable', 'Increased more than 10 pounds']
+        extremes=['Remained stable', 'Increased more than 10 pounds'],
+        remap=_remap_weight,
         ),
     }

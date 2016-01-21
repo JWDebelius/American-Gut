@@ -564,10 +564,11 @@ class AgDataTest(TestCase):
             unspecified='ALCOHOL_TYPES_UNSPECIFIED',
             )
 
-        known_order = [['true', 'false'], [True, False], ['yes', 'no']]
+        known_order = [['true', 'false'], [True, False]]
         self.assertEqual(np.sum(pd.isnull(self.ag_data.map_[question.name])),
                          0)
         self.ag_data.clean_group(question)
+
         self.assertEqual(np.sum(pd.isnull(self.ag_data.map_[question.name])),
                          10)
 
@@ -625,23 +626,20 @@ class AgDataTest(TestCase):
         known_order = [['Never', 'Rarely (a few times/month)',
                         'Occasionally (1-2 times/week)',
                         'Regularly (3-5 times/week)', 'Daily'],
-                       ['Never', 'Rarely (a few times/month)',
-                        'Occasionally (1-2 times/week)',
-                        'Regularly (3-5 times/week)', 'Daily'],
-                       ['Never', 'Rarely (a few times/month)',
-                        'Occasionally (1-2 times/week)',
-                        'Regularly (3-5 times/week)', 'Daily']]
+                       ['Never', 'A few times/month', '1-2 times/week',
+                        '3-5 times/week', 'Daily']
+                       ]
 
         question = AgFrequency(
             name='ALCOHOL_FREQUENCY',
             description=('How often the participant consumes alcohol.'),
+            combine='weekly',
             )
 
         self.ag_data.clean_group(question)
 
         self.assertEqual(set(self.ag_data.map_[question.name]) - {np.nan},
-                         {'Never', 'A few times/month', '1-2 times/week',
-                          '3-5 times/week', 'Daily'})
+                         {'Never', 'A few times/month', "More than once/week"})
         self.assertEqual(question.earlier_order, known_order)
 
 
@@ -876,13 +874,22 @@ class AgCategoricalTest(TestCase):
         self.assertEqual(self.ag_categorical.earlier_order, [self.order])
 
     def test_ag_categorical_drop_infrequent(self):
+        order = [
+            "I don't know, I do not have a point of reference",
+            "I tend to have normal formed stool",
+            "I tend to be constipated (have difficulty passing stool)",
+            "I tend to have diarrhea (watery stool)",
+            "Solid as a Rock"]
+        self.ag_categorical.order = order
         self.ag_categorical.frequency_cutoff = 4
         self.ag_categorical.drop_infrequent(self.map_)
 
         self.assertEqual(set(self.map_[self.ag_categorical.name]) - {np.nan}, {
             "I tend to have normal formed stool"
             })
-        self.assertEqual(self.ag_categorical.earlier_order, [self.order])
+        self.assertEqual(self.ag_categorical.earlier_order, [order])
+        self.assertEqual(self.ag_categorical.order,
+                         ["I tend to have normal formed stool"])
 
     def test_ag_clinical_remap_strict(self):
         self.ag_clinical.remap_clinical(self.map_)
@@ -932,6 +939,66 @@ class AgCategoricalTest(TestCase):
               'Daily']]
             )
 
+    # def test_clean_switch(self):
+    #     col = self.ag_frequency.name
+    #     self.map_.loc[self.map_[col] == 'Rarely (a few times/month)', col] \
+    #         = 'Rarely (less than once/week)'
+    #     self.ag_frequency.clean(self.map_)
+
+    #     self.assertEqual(set(self.map_[self.ag_frequency.name]) - {np.nan}, {
+    #         'Never', 'A few times/month', '1-2 times/week', '3-5 times/week',
+    #         'Daily'
+    #         })
+    #     print set(self.map_[self.ag_frequency.name])
+    #     print self.ag_frequency.order
+    #     print self.ag_frequency.earlier_order
+    #     # self.assertEqual(self.ag_frequency.order,
+    #     #                  ['Never', 'A few times/month', '1-2 times/week',
+    #     #                   '3-5 times/week', 'Daily'])
+    #     # self.assertEqual(self.ag_frequency.earlier_order,
+    #     #                  [['Never', 'Rarely (a few times/month)',
+    #     #                    'Occasionally (1-2 times/week)',
+    #     #                    'Regularly (3-5 times/week)', 'Daily']])
+
+    def test_ag_frequency_combine_frequency_rarely(self):
+        self.ag_frequency.combine = 'rarely'
+        self.ag_frequency.combine_frequency(self.map_)
+
+        self.assertEqual(
+            set(self.map_[self.ag_frequency.name]) - {np.nan},
+            {'Less than once/week', 'Occasionally (1-2 times/week)',
+             'Regularly (3-5 times/week)', 'Daily'}
+            )
+        self.assertEqual(
+            self.ag_frequency.earlier_order,
+            [['Never', 'Rarely (a few times/month)',
+              'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+              'Daily']]
+            )
+
+    def test_ag_frequency_combine_frequency_weekly(self):
+        self.ag_frequency.combine = 'weekly'
+        self.ag_frequency.combine_frequency(self.map_)
+
+        self.assertEqual(
+            set(self.map_[self.ag_frequency.name]) - {np.nan},
+            {'Never', 'Rarely (a few times/month)', "More than once/week"}
+            )
+        self.assertEqual(self.ag_frequency.order,
+                         ['Never', 'Rarely (a few times/month)',
+                          "More than once/week"])
+        self.assertEqual(
+            self.ag_frequency.earlier_order,
+            [['Never', 'Rarely (a few times/month)',
+              'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+              'Daily']]
+            )
+
+    def test_ag_frequency_combine_frequency_error(self):
+        self.ag_frequency.combine = 'foo'
+        with self.assertRaises(ValueError):
+            self.ag_frequency.combine_frequency(self.map_)
+
 
 class AgBoolTest(TestCase):
     def setUp(self):
@@ -980,8 +1047,8 @@ class AgBoolTest(TestCase):
             unspecified=self.unspecified)
         self.assertEqual(test.unspecified, self.unspecified)
 
-    def test_ag_bool_convert_to_string(self):
-        self.ag_bool.convert_to_string(self.map_)
+    def test_ag_bool_convert_to_word(self):
+        self.ag_bool.convert_to_word(self.map_)
         self.assertEqual(set(self.map_[self.ag_bool.name]) - {np.nan},
                          {'yes', 'no'})
         self.assertEqual(self.ag_bool.earlier_order, [['true', 'false']])
@@ -991,8 +1058,10 @@ class AgBoolTest(TestCase):
         self.assertEqual(np.sum(pd.isnull(self.map_[self.ag_multiple.name])),
                          0)
         self.ag_multiple.correct_unspecified(self.map_)
-        self.assertEqual(np.sum(pd.isnull(self.map_[self.ag_multiple.name])),
-                         10)
+        self.assertEqual(
+            np.sum(pd.isnull(self.map_[self.ag_multiple.name]).astype(int)),
+            10
+            )
 
     def test_ag_multiple_unspecified_error(self):
         self.ag_multiple.unspecified = 'TEST_COLUMN'
@@ -1054,77 +1123,77 @@ class AgContinousTest(TestCase):
                          10)
 
 
-# class AgAuxillaryDictTest(TestCase):
-#     def test_remap_abx(self):
-#         self.assertEqual(_remap_abx('I have not taken antibiotics in the past '
-#                                     'year'), 'More than a year')
-#         self.assertEqual(_remap_abx(3), 3)
-#         self.assertEqual(_remap_abx('cat'), 'cat')
+class AgAuxillaryDictTest(TestCase):
+    def test_remap_abx(self):
+        self.assertEqual(_remap_abx('I have not taken antibiotics in the past '
+                                    'year'), 'More than a year')
+        self.assertEqual(_remap_abx(3), 3)
+        self.assertEqual(_remap_abx('cat'), 'cat')
 
-#     def test_remap_bowel_frequency(self):
-#         self.assertEqual(_remap_bowel_frequency('Four'), 'Four or more')
-#         self.assertEqual(_remap_bowel_frequency('Five or more'),
-#                          'Four or more')
-#         self.assertEqual(_remap_bowel_frequency('foo'), 'foo')
+    def test_remap_bowel_frequency(self):
+        self.assertEqual(_remap_bowel_frequency('Four'), 'Four or more')
+        self.assertEqual(_remap_bowel_frequency('Five or more'),
+                         'Four or more')
+        self.assertEqual(_remap_bowel_frequency('foo'), 'foo')
 
-#     def test_remap_fecal_quality(self):
-#         self.assertEqual('Diarrhea',
-#                          _remap_fecal_quality('I tend to have diarrhea '
-#                                               '(watery stool)'))
-#         self.assertEqual('Constipated',
-#                          _remap_fecal_quality('I tend to be constipated '
-#                                               '(have difficulty passing '
-#                                               'stool)'))
-#         self.assertEqual('Normal',
-#                          _remap_fecal_quality('I tend to have normal formed'
-#                                               ' stool'))
-#         self.assertEqual('foo',
-#                          _remap_fecal_quality('foo'))
+    def test_remap_fecal_quality(self):
+        self.assertEqual('Diarrhea',
+                         _remap_fecal_quality('I tend to have diarrhea '
+                                              '(watery stool)'))
+        self.assertEqual('Constipated',
+                         _remap_fecal_quality('I tend to be constipated '
+                                              '(have difficulty passing '
+                                              'stool)'))
+        self.assertEqual('Normal',
+                         _remap_fecal_quality('I tend to have normal formed'
+                                              ' stool'))
+        self.assertEqual('foo',
+                         _remap_fecal_quality('foo'))
 
-#     def test_remap_contraception(self):
-#         self.assertEqual('Yes', _remap_contraceptive('Yes, I like Supergirl'))
-#         self.assertEqual('I like Supergirl',
-#                          _remap_contraceptive('I like Supergirl'))
+    def test_remap_contraception(self):
+        self.assertEqual('Yes', _remap_contraceptive('Yes, I like Supergirl'))
+        self.assertEqual('I like Supergirl',
+                         _remap_contraceptive('I like Supergirl'))
 
-#     def test_remap_gluten(self):
-#         self.assertEqual('Celiac Disease',
-#                          _remap_gluten('I was diagnosed with celiac disease'))
-#         self.assertEqual('Non Medical',
-#                          _remap_gluten('I do not eat gluten because it makes'
-#                                        ' me feel bad'))
-#         self.assertEqual("Anti-Gluten Allergy",
-#                          _remap_gluten('I was diagnosed with gluten allergy '
-#                                        '(anti-gluten IgG), but not celiac '
-#                                        'disease'))
-#         self.assertEqual('foo', _remap_gluten('foo'))
+    def test_remap_gluten(self):
+        self.assertEqual('Celiac Disease',
+                         _remap_gluten('I was diagnosed with celiac disease'))
+        self.assertEqual('Non Medical',
+                         _remap_gluten('I do not eat gluten because it makes'
+                                       ' me feel bad'))
+        self.assertEqual("Anti-Gluten Allergy",
+                         _remap_gluten('I was diagnosed with gluten allergy '
+                                       '(anti-gluten IgG), but not celiac '
+                                       'disease'))
+        self.assertEqual('foo', _remap_gluten('foo'))
 
-#     def test_remap_last_travel(self):
-#         self.assertEqual('More than a year',
-#                          _remap_last_travel('I have not been outside of my '
-#                                             'country of residence in'
-#                                             ' the past year.'))
-#         self.assertEqual('foo', _remap_last_travel('foo'))
+    def test_remap_last_travel(self):
+        self.assertEqual('More than a year',
+                         _remap_last_travel('I have not been outside of my '
+                                            'country of residence in'
+                                            ' the past year.'))
+        self.assertEqual('foo', _remap_last_travel('foo'))
 
-#     def test_remap_pool_frequency(self):
-#         self.assertEqual('More than once a week',
-#                          _remap_pool_frequency('Daily'))
-#         self.assertEqual('More than once a week',
-#                          _remap_pool_frequency('Occasionally '
-#                                                '(1-2 times/week)')),
-#         self.assertEqual('More than once a week',
-#                          _remap_pool_frequency('Regularly (3-5 times/week)'))
-#         self.assertEqual('More than once a week',
-#                          _remap_pool_frequency('1-2 times/week')),
-#         self.assertEqual('More than once a week',
-#                          _remap_pool_frequency('3-5 times/week'))
-#         self.assertEqual('foo', _remap_pool_frequency('foo'))
+    def test_remap_pool_frequency(self):
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('Daily'))
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('Occasionally '
+                                               '(1-2 times/week)')),
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('Regularly (3-5 times/week)'))
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('1-2 times/week')),
+        self.assertEqual('More than once a week',
+                         _remap_pool_frequency('3-5 times/week'))
+        self.assertEqual('foo', _remap_pool_frequency('foo'))
 
-#     def test_remap_sleep(self):
-#         self.assertEqual('Less than 6 hours',
-#                          _remap_sleep('Less than 5 hours'))
-#         self.assertEqual('Less than 6 hours',
-#                          _remap_sleep('5-6 hours'))
-#         self.assertEqual('foo', _remap_sleep('foo'))
+    def test_remap_sleep(self):
+        self.assertEqual('Less than 6 hours',
+                         _remap_sleep('Less than 5 hours'))
+        self.assertEqual('Less than 6 hours',
+                         _remap_sleep('5-6 hours'))
+        self.assertEqual('foo', _remap_sleep('foo'))
 
 
 if __name__ == '__main__':
