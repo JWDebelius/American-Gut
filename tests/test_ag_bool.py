@@ -2,10 +2,10 @@ from unittest import TestCase, main
 
 import numpy as np
 import pandas as pd
-import numpy.testing as npt
-import pandas.util.testing as pdt
 
-from americangut.question.ag_question import AgQuestion
+from americangut.question.ag_bool import (AgBool,
+                                          AgMultiple,
+                                          )
 
 amgut_sub = np.array([
     ["10317.000006668", "71.0", "male", "I do not have this condition",
@@ -75,87 +75,74 @@ amgut_sub = np.array([
     ])
 
 
-class AgQuestionTest(TestCase):
+class AgBoolTest(TestCase):
+
     def setUp(self):
         self.map_ = pd.DataFrame(
             amgut_sub,
             columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
                      "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
+                     "ALCOHOL_TYPES_SOUR_BEERS",
+                     "ALCOHOL_TYPES_UNSPECIFIED",
                      "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
                      "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
             ).set_index('#SampleID')
         self.map_.replace('', np.nan, inplace=True)
 
-        self.name = 'TEST_COLUMN'
-        self.description = ('"Say something, anything."\n'
-                            '"Testing... 1, 2, 3"\n'
-                            '"Anything but that!"')
-        self.dtype = str
+        self.name = 'ALCOHOL_TYPES_BEERCIDER'
+        self.description = ('The participant drinks beer or cider.')
+        self.dtype = bool
+        self.order = ['true', 'false']
+        self.extremes = ['true', 'false']
+        self.unspecified = 'ALCOHOL_TYPES_UNSPECIFIED'
 
-        self.fun = lambda x: 'foo'
-
-        self.ag_question = AgQuestion(
+        self.ag_bool = AgBool(
             name='ALCOHOL_TYPES_UNSPECIFIED',
             description=('Has the participant described their alcohol use'),
-            dtype=bool
+            )
+        self.ag_multiple = AgMultiple(
+            name=self.name,
+            description=self.description,
+            unspecified=self.unspecified,
             )
 
-    def test_init(self):
-        test = AgQuestion(self.name, self.description, self.dtype)
+    def test_ag_bool_init(self):
+        name = 'TEST_COLUMN'
+        description = 'Testing. 1, 2, 3.\nAnything but that!'
 
-        self.assertEqual(test.name, self.name)
-        self.assertEqual(test.description, self.description)
-        self.assertEqual(test.dtype, self.dtype)
-        self.assertEqual(test.clean_name, 'Test Column')
-        self.assertEqual(test.free_response, False)
-        self.assertEqual(test.mimmarks, False)
-        self.assertEqual(test.ontology, None)
-        self.assertEqual(test.remap_, None)
+        test_class = AgBool(name, description)
 
-    def test_init_kwargs(self):
-        test = AgQuestion(self.name, self.description, self.dtype,
-                          clean_name='This is a test.',
-                          free_response=True,
-                          mimmarks=True,
-                          ontology='GAZ',
-                          remap=self.fun,
-                          subset=False
-                          )
+        self.assertEqual(test_class.dtype, bool)
+        self.assertEqual(test_class.order, self.order)
+        self.assertEqual(test_class.type, 'Bool')
 
-        self.assertEqual(test.name, self.name)
-        self.assertEqual(test.description, self.description)
-        self.assertEqual(test.dtype, self.dtype)
-        self.assertEqual(test.clean_name, 'This is a test.')
-        self.assertEqual(test.free_response, True)
-        self.assertEqual(test.mimmarks, True)
-        self.assertEqual(test.ontology, 'GAZ')
-        self.assertEqual(test.remap_(1), 'foo')
+    def test_ag_multiple_init(self):
+        test = AgMultiple(
+            name=self.name,
+            description=self.description,
+            unspecified=self.unspecified)
+        self.assertEqual(test.unspecified, self.unspecified)
 
-    def test_init_name_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(1, self.description, self.dtype)
+    def test_ag_bool_convert_to_word(self):
+        self.ag_bool.convert_to_word(self.map_)
+        self.assertEqual(set(self.map_[self.ag_bool.name]) - {np.nan},
+                         {'yes', 'no'})
+        self.assertEqual(self.ag_bool.earlier_order, [['true', 'false']])
 
-    def test_init_description_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(self.name, 3, self.dtype)
+    def test_ag_multiple_correct_unspecified(self):
+        self.ag_multiple.remap_data_type(self.map_)
+        self.assertEqual(np.sum(pd.isnull(self.map_[self.ag_multiple.name])),
+                         0)
+        self.ag_multiple.correct_unspecified(self.map_)
+        self.assertEqual(
+            np.sum(pd.isnull(self.map_[self.ag_multiple.name]).astype(int)),
+            10
+            )
 
-    def test_init_class_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(self.name, self.description, 'bool')
-
-    def test_init_clean_name_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(self.name, self.description, self.dtype, ['Cats'])
-
-    def test_remap_data_type(self):
-        self.ag_question.remap_data_type(self.map_)
-        self.assertEquals(set(self.map_[self.ag_question.name]) - {np.nan},
-                          {True, False})
-        self.ag_question.dtype = int
-        self.ag_question.remap_data_type(self.map_)
-        self.assertEqual(set(self.map_[self.ag_question.name]) - {np.nan},
-                         {0, 1})
+    def test_ag_multiple_unspecified_error(self):
+        self.ag_multiple.unspecified = 'TEST_COLUMN'
+        with self.assertRaises(ValueError):
+            self.ag_multiple.correct_unspecified(self.map_)
 
 if __name__ == '__main__':
     main()

@@ -2,10 +2,9 @@ from unittest import TestCase, main
 
 import numpy as np
 import pandas as pd
-import numpy.testing as npt
-import pandas.util.testing as pdt
 
-from americangut.question.ag_question import AgQuestion
+from americangut.question.ag_continous import AgContinous
+
 
 amgut_sub = np.array([
     ["10317.000006668", "71.0", "male", "I do not have this condition",
@@ -75,87 +74,60 @@ amgut_sub = np.array([
     ])
 
 
-class AgQuestionTest(TestCase):
+class AgContinousTest(TestCase):
+
     def setUp(self):
         self.map_ = pd.DataFrame(
             amgut_sub,
             columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
                      "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
+                     "ALCOHOL_TYPES_SOUR_BEERS",
+                     "ALCOHOL_TYPES_UNSPECIFIED",
                      "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
                      "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
             ).set_index('#SampleID')
         self.map_.replace('', np.nan, inplace=True)
 
-        self.name = 'TEST_COLUMN'
-        self.description = ('"Say something, anything."\n'
-                            '"Testing... 1, 2, 3"\n'
-                            '"Anything but that!"')
-        self.dtype = str
+        self.name = 'AGE_YEARS'
+        self.description = 'Participant age in years'
+        self.unit = 'years'
 
-        self.fun = lambda x: 'foo'
+        self.ag_continous = AgContinous(self.name, self.description, self.unit,
+                                        range=[20, 50])
 
-        self.ag_question = AgQuestion(
-            name='ALCOHOL_TYPES_UNSPECIFIED',
-            description=('Has the participant described their alcohol use'),
-            dtype=bool
+    def test_ag_continous_init(self):
+        test = AgContinous(
+            name=self.name,
+            description=self.description,
+            unit=self.unit
+            )
+        self.assertEqual(self.unit, test.unit)
+        self.assertEqual('Continous', test.type)
+        self.assertEqual(test.dtype, float)
+
+    def test_ag_continous_init_error(self):
+        with self.assertRaises(ValueError):
+            AgContinous('TEST_COLUMN',
+                        'Testing. 1, 2, 3.\nAnything but that!',
+                        range=[12, 5])
+
+    def test_ag_continous_drop_outliers(self):
+        self.assertEqual(
+            self.map_[self.ag_continous.name].dropna().astype(float).min(),
+            6.0
+            )
+        self.assertEqual(
+            self.map_[self.ag_continous.name].dropna().astype(float).max(),
+            77.0
             )
 
-    def test_init(self):
-        test = AgQuestion(self.name, self.description, self.dtype)
-
-        self.assertEqual(test.name, self.name)
-        self.assertEqual(test.description, self.description)
-        self.assertEqual(test.dtype, self.dtype)
-        self.assertEqual(test.clean_name, 'Test Column')
-        self.assertEqual(test.free_response, False)
-        self.assertEqual(test.mimmarks, False)
-        self.assertEqual(test.ontology, None)
-        self.assertEqual(test.remap_, None)
-
-    def test_init_kwargs(self):
-        test = AgQuestion(self.name, self.description, self.dtype,
-                          clean_name='This is a test.',
-                          free_response=True,
-                          mimmarks=True,
-                          ontology='GAZ',
-                          remap=self.fun,
-                          subset=False
-                          )
-
-        self.assertEqual(test.name, self.name)
-        self.assertEqual(test.description, self.description)
-        self.assertEqual(test.dtype, self.dtype)
-        self.assertEqual(test.clean_name, 'This is a test.')
-        self.assertEqual(test.free_response, True)
-        self.assertEqual(test.mimmarks, True)
-        self.assertEqual(test.ontology, 'GAZ')
-        self.assertEqual(test.remap_(1), 'foo')
-
-    def test_init_name_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(1, self.description, self.dtype)
-
-    def test_init_description_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(self.name, 3, self.dtype)
-
-    def test_init_class_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(self.name, self.description, 'bool')
-
-    def test_init_clean_name_error(self):
-        with self.assertRaises(TypeError):
-            AgQuestion(self.name, self.description, self.dtype, ['Cats'])
-
-    def test_remap_data_type(self):
-        self.ag_question.remap_data_type(self.map_)
-        self.assertEquals(set(self.map_[self.ag_question.name]) - {np.nan},
-                          {True, False})
-        self.ag_question.dtype = int
-        self.ag_question.remap_data_type(self.map_)
-        self.assertEqual(set(self.map_[self.ag_question.name]) - {np.nan},
-                         {0, 1})
+        self.ag_continous.drop_outliers(self.map_)
+        self.assertEqual(self.map_[self.ag_continous.name].dropna().min(),
+                         26.0)
+        self.assertEqual(self.map_[self.ag_continous.name].dropna().max(),
+                         45.0)
+        self.assertEqual(np.sum(pd.isnull(self.map_[self.ag_continous.name])),
+                         10)
 
 if __name__ == '__main__':
     main()
