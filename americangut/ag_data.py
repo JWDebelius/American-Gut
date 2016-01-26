@@ -1,3 +1,4 @@
+import copy
 import os
 
 import biom
@@ -132,8 +133,8 @@ class AgData:
                                 dtype=str,
                                 na_values=self.na_values)
         self.map_.set_index('#SampleID', inplace=True)
-        columns = self.alpha_columns[self.data_set['rarefaction_depth']]
-        self.map_[columns] = self.map_[columns].astype(float)
+        a_columns = self.alpha_columns[self.data_set['rarefaction_depth']]
+        self.map_[a_columns] = self.map_[a_columns].astype(float)
 
         self.otu_ = biom.load_table(otu_fp)
 
@@ -143,7 +144,43 @@ class AgData:
                      skbio.DistanceMatrix.read(weighted_fp)
                      }
 
-    def drop_alpha_outliers(self, metric='PD_whole_tree_10k', limit=55):
+    def filter(self, ids, inplace=True):
+        """Filter the dataset with a list of ids
+
+        Parameters
+        ----------
+        ids : array-like
+            The sample ids to keep in the new dataset
+        inplace : bool
+            Should the filtering be performed locally, or should the dataset
+            be returned
+
+        Returns
+        -------
+        map_ : DataFrame
+            The metadata represented as a pandas DataFrame. Returned when
+            `inplace` is `False`.
+        otu_ : biom
+            The Biom object containing the sample x OTU counts. Returned when
+            `inplace` is `False`.
+        beta : dict
+            A dictioary keying beta diversity metric(s) to DistanceMatrix
+            object(s). Returned when `inplace` is `False`.
+
+        """
+
+        map_ = self.map_.loc[ids]
+        otu_ = copy.copy(self.otu_).filter(ids)
+        beta = {k: self.beta[k].filter(ids) for k in self.beta.keys()}
+
+        if inplace:
+            self.map_ = map_
+            self.otu_ = otu_
+            self.beta = beta
+        else:
+            return map_, otu_, beta
+
+    def drop_alpha_outliers(self, metric='PD_whole_tree_10k', limit=55, inplace=True):
         """Removes samples with alpha diversity above the specified range
 
         In rounds 1-21 of the AmericanGut, there is a participant who has an
@@ -168,9 +205,7 @@ class AgData:
         self.outliers = self.map_.loc[(self.map_[metric] >= limit)].index
         keep = self.map_.loc[(self.map_[metric] < limit)].index
 
-        self.map_ = self.map_.loc[keep]
-        self.otu_ = self.otu_.filter(keep)
-        self.beta = {k: self.beta[k].filter(keep) for k in self.beta.keys()}
+        self.filter(keep, inplace)
 
     def drop_bmi_outliers(self, bmi_limits=[5, 55]):
         """Corrects BMI values outside a specified range
@@ -195,36 +230,64 @@ class AgData:
         self.map_['BMI_CORRECTED'] = self.map_.loc[keep, 'BMI']
         self.map_.loc[discard, 'BMI_CAT'] = np.nan
 
-    def return_dataset(self, group):
-        """Returns a map, otu table, and distance matrix for the group
+    def filter_by_question(self, question, inplace=True):
+        """Removes samples from people who didn't answer
 
         Many tests curerntly avaliable do not respond well to missing data.
         So, we filter the dataset to remove any samples not in the dataset.
 
         Parameters
         ----------
-        group : AgQuestion
+        question : AgQuestion
             An AqQuestion data dictionary object specifying the field
             to be used.
 
         Returns
         -------
         map_ : DataFrame
-            The metadata represented as a pandas DataFrame
+            The metadata represented as a pandas DataFrame. Returned when
+            `inplace` is `False`.
         otu_ : biom
-            The Biom object containing the sample x OTU counts
+            The Biom object containing the sample x OTU counts. Returned when
+            `inplace` is `False`.
         beta : dict
             A dictioary keying beta diversity metric(s) to DistanceMatrix
-            object(s)
+            object(s). Returned when `inplace` is `False`.
 
         """
-        defined = self.map_[~ pd.isnull(self.map_[group.name])].index
+        defined = self.map_[~ pd.isnull(self.map_[question.name])].index
 
-        map_ = self.map_.loc[defined]
-        otu_ = self.otu_.filter(defined, axis='sample')
-        beta = {k: v.filter(defined) for k, v in self.beta.iteritems()}
+        return self.filter(defined, inplace=inplace)
 
-        return map_, otu_, beta
+    def filter_subset(self, age=True, antibiotics=True, bmi=True,
+                      diabetes=True, ibd=True, inplace=True):
+        """Filters the data for the supplied groups
+
+        Parameters
+        ----------
+        age, antibiotics, bmi, diabetes, ibd: bool
+            Whether the data should be filtered using the specified subset
+            field
+
+        """
+        def convert_to_binary(x):
+            if not isinstance(x, str):
+                return x
+            elif x.lower() in {'true', 'y', 'yes', 't'}:
+                return True
+            elif x.lower() in {'false', 'f', 'n', 'no', 'none'}:
+                return False
+
+        binary = np.array([age, antibiotics, bmi, diabetes, ibd])
+        columns = np.array(['SUBSET_AGE', 'SUBSET_ANTIBIOTIC_HISTORY',
+                            'SUBSET_BMI', 'SUBSET_DIABETES', 'SUBSET_IBD',
+                            ])
+        for column in columns:
+            self.map_[column] = self.map_[column].apply(convert_to_binary)
+        columns = columns[binary]
+        keep_ids = self.map_[self.map_[columns].all(1)].index
+
+        return self.filter(keep_ids, inplace)
 
     def clean_group(self, group):
         """Leverages question structure to format the specified column in map_

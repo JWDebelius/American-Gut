@@ -20,71 +20,116 @@ from americangut.question.ag_categorical import (AgCategorical,
 from americangut.question.ag_continous import AgContinous
 
 amgut_sub = np.array([
-    ["10317.000006668", "71.0", "male", "I do not have this condition",
-     "false", "false", "false", "true", "", "", "07/09/2013 08:30", "Never"],
-    ["10317.000030344", "40.0", "female", "I do not have this condition",
-     "false", "true", "false", "false", "One", "I tend to have normal formed "
-     "stool", "09/08/2015 09:10", "Regularly (3-5 times/week)"],
-    ["10317.000031833", "76.0", "female", "I do not have this condition",
-     "true", "true", "false", "false", "One", "I tend to have normal formed "
-     "stool", "08/17/2015 08:33", "Daily"],
-    ["10317.000013134", "45.0", "male", "", "false", "false", "false", "true",
-     "", "", "01/12/2014 00:35", "Regularly (3-5 times/week)"],
-    ["10317.000022634", "40.0", "male", "I do not have this condition",
-     "false", "false", "false", "true", "Less than one", "I tend to be "
-     "constipated (have difficulty passing stool)", "02/02/2015 09:00",
-     "Never"],
-    ["10317.000020683", "34.0", "male", "I do not have this condition",
-     "true", "true", "false", "false", "Less than one", "I don't know, "
-     "I do not have a point of reference", "11/08/2014 10:15",
-     "Regularly (3-5 times/week)"],
-    ["10317.000022916", "77.0", "male", "I do not have this condition", "true",
-     "false", "false", "false", "One", "I don't know, I do not have a point of"
-     " reference", "01/13/2015 19:14", "Rarely (a few times/month)"],
-    ["10317.000031363", "45.0", "male", "I do not have this condition", "true",
-     "false", "false", "false", "One", "I tend to be constipated (have "
-     "difficulty passing stool)", "08/07/2015 08:45",
-     "Occasionally (1-2 times/week)"],
-    ["10317.000006952", "33.0", "female", "I do not have this condition",
-     "false", "false", "false", "true", "", "", "07/03/2013 12:45",
-     "Rarely (a few times/month)"],
-    ["10317.000027363", "52.0", "male", "I do not have this condition",
-     "true", "false", "false", "false", "One", "", "07/05/2015 11:35",
-     "Rarely (a few times/month)"],
-    ["10317.000002337", "57.0", "female", "I do not have this condition",
-     "false", "false", "false", "true", "", "", "05/08/2013 09:10", "Daily"],
-    ["10317.000027574", "6.0", "female", "I do not have this condition",
-     "false", "false", "false", "true", "One", "I tend to have normal formed "
-     "stool", "06/17/2015 19:15", "Never"],
-    ["10317.000003365", "26.0", "female", "I do not have this condition",
-     "false", "false", "false", "true", "", "", "04/02/2013 10:30", "Regularly"
-     " (3-5 times/week)"],
-    ["10317.000002347", "45.0", "female", "I do not have this condition",
-     "false", "false", "false", "true", "", "", "05/04/2013 14:40",
-     "Occasionally (1-2 times/week)"],
-    ["10317.000011322", "", "female", "I do not have this condition", "false",
-     "false", "false", "true", "", "", "01/14/2014 09:08", "Regularly "
-     "(3-5 times/week)"],
-    ["10317.000020053", "35.0", "male", "Self-diagnosed", "true", "true",
-     "false", "false", "Three", "I tend to have normal formed stool",
-     "01/03/2015 17:15", "Occasionally (1-2 times/week)"],
-    ["10317.000029572", "65.0", "male", "Diagnosed by a medical professional "
-     "(doctor, physician assistant)", "false", "false", "false", "false",
-     "Less than one", "I tend to be constipated (have difficulty passing "
-     "stool)", "08/28/2015 14:00", "Daily"],
-    ["10317.000023046", "14.0", "female", "Diagnosed by a medical professional"
-     " (doctor, physician assistant)", "false", "false", "false", "true",
-     "Three", "I tend to have normal formed stool", "01/27/2015 10:15",
-     "Never"],
-    ["10317.000028154", "54.0", "female", "Diagnosed by a medical professional"
-     " (doctor, physician assistant)", "true", "true", "false", "false",
-     "Five or more", "I tend to have diarrhea (watery stool)",
-     "06/25/2015 21:25", "Occasionally (1-2 times/week)"],
-    ["10317.000020499", "33.0", "female", "Diagnosed by a medical professional"
-     " (doctor, physician assistant)", "true", "false", "false", "false",
-     "Five or more", "I tend to have diarrhea (watery stool)",
-     "12/02/2014 09:00", "Rarely (a few times/month)"],
+    ['10317.000006668', '71.0', 'Never', 'false', 'true', '24.61', 'Normal',
+     'I do not have this condition', '14.340194', '28.045005', '5.02856010656',
+     '5.23963694715', '251.873888011', '531.783308576', '133.1', '366.2',
+     'false', 'true', 'true', 'true', 'true', ''],
+    ['10317.000030344', '40.0', 'Regularly (3-5 times/week)', 'false', 'false',
+     '21.15', 'Normal', 'I do not have this condition', '17.52718',
+     '35.567157', '5.68192485378', '5.88986104793', '315.738586263',
+     '767.278538734', '155.4', '459.8', 'true', 'false', 'true', 'true',
+     'true', 'I tend to have normal formed stool'],
+    ['10317.000031833', '76.0', 'Daily', 'true', 'false', '28.35',
+     'Overweight', 'I do not have this condition', '23.138257', '44.269159',
+     '6.45463332504', '6.7301856679', '362.525618183', '927.222520687',
+     '200.6', '581.8', 'false', 'true', 'true', 'true', 'true',
+     'I tend to have normal formed stool'],
+    ['10317.000013134', '45.0', 'Regularly (3-5 times/week)', 'false', 'true',
+     '23.51', 'Normal', '', '19.004077', '34.987892', '5.8177687212',
+     '6.04825725462', '283.688480584', '621.790214285', '153.5',
+     '419.1', 'true', 'false', 'true', 'true', 'false', ''],
+    ['10317.000022634', '40.0', 'Never', 'false', 'true', '22.24', 'Normal',
+     'I do not have this condition', '12.757604', '24.35038', '4.18196692357',
+     '4.34957998607', '195.708672633', '481.450659304', '109.5', '306.7',
+     'true', 'true', 'true', 'true', 'true', 'I tend to be constipated '
+     '(have difficulty passing stool)'],
+    ['10317.000020683', '34.0', 'Regularly (3-5 times/week)', 'true', 'false',
+     '23.36', 'Normal', 'I do not have this condition', '15.938636',
+     '30.445418', '4.69301334505', '4.8805030057', '256.001215824',
+     '470.162645729', '130.8', '349.5', 'true', 'false', 'true', 'true',
+     'true', "I don't know, I do not have a point of reference"],
+    ['10317.000022916', '77.0', 'Rarely (a few times/month)', 'true', 'false',
+     '30.41', 'Obese', 'I do not have this condition', '16.846201',
+     '34.052185', '5.76200535747', '5.98830200759', '317.03496711',
+     '775.942491501', '161.4', '481.6', 'false', 'false', 'false', 'true',
+     'true', "I don't know, I do not have a point of reference"],
+    ['10317.000031363', '45.0', 'Occasionally (1-2 times/week)', 'true',
+     'false', '20.16', 'Normal', 'I do not have this condition', '15.329904',
+     '28.674869', '5.56385250945', '5.76521128359', '224.719925507',
+     '689.432707101', '134.1', '374.1', 'true', 'true', 'true', 'true',
+     'true', 'I tend to be constipated (have difficulty passing stool)'],
+    ['10317.000006952', '33.0', 'Rarely (a few times/month)', 'false', 'true',
+     '21.8', 'Normal', 'I do not have this condition', '16.478963',
+     '29.894423', '5.56200604556', '5.7662879992', '248.312830767',
+     '510.61022798', '140.8', '370.0', 'true', 'false', 'true', 'true', 'true',
+     ''],
+    ['10317.000027363', '52.0', 'Rarely (a few times/month)', 'true', 'false',
+     '21.93', 'Normal', 'I do not have this condition', '17.552066',
+     '35.073292', '5.51344459713', '5.73262282623', '283.392113931',
+     '818.052897634', '152.0', '452.3', 'true', 'true', 'true', 'true',
+     'true', ''],
+    ['10317.000002337', '57.0', 'Daily', 'false', 'true', '22.72', 'Normal',
+     'I do not have this condition', '11.320356', '22.440616',
+     '4.67832361812', '4.84110706669', '168.043870321', '426.056128298',
+     '100.2', '279.5', 'true', 'false', 'true', 'false', 'true', ''],
+    ['10317.000027574', '6.0', 'Never', 'false', 'true', '15.48',
+     'Underweight', 'I do not have this condition', '12.825713', '22.999707',
+     '4.77128567758', '4.89638844086', '166.111886447', '420.433247276',
+     '105.0', '268.6', 'false', 'true', 'false', 'true', 'true',
+     'I tend to have normal formed stool'],
+    ['10317.000003365', '26.0', 'Regularly (3-5 times/week)', 'false', 'true',
+     '20.86', 'Normal', 'I do not have this condition', '11.413715',
+     '21.602869', '4.34580753681', '4.49314030837', '190.522332339',
+     '392.257705499', '110.2', '285.9', 'true', 'true', 'true', 'true',
+     'true', ''],
+    ['10317.000002347', '45.0', 'Occasionally (1-2 times/week)', 'false',
+     'true', '25.71', 'Overweight', 'I do not have this condition',
+     '13.129761', '25.323507', '4.42378118684', '4.58755771612',
+     '200.751420094', '454.103603971', '105.0', '300.9', 'true', 'true',
+     'true', 'true', 'true', ''],
+    ['10317.000011322', '', 'Regularly (3-5 times/week)', 'false', 'true',
+     '34.16', 'Obese', 'I do not have this condition', '13.600805',
+     '25.763357', '4.35932913512', '4.47382610643', '215.597203752',
+     '512.739207256', '118.2', '330.8', 'false', 'false', 'false', 'true',
+     'true', ''],
+    ['10317.000020053', '35.0', 'Occasionally (1-2 times/week)', 'true',
+     'false', '22.12', 'Normal', 'Self-diagnosed', '11.637385', '25.926528',
+     '3.30051047459', '3.44538552585', '193.070246388', '540.825339832',
+     '92.5', '314.7', 'true', 'true', 'true', 'true', 'false',
+     'I tend to have normal ' 'formed stool'],
+    ['10317.000029572', '65.0', 'Daily', 'false', 'false', '26.31',
+     'Overweight', 'Diagnosed by a medical professional (doctor, physician '
+     'assistant)', '25.204442', '48.174941', '6.71316811398', '7.04213735924',
+     '381.901710119', '983.028749379', '222.8', '614.7', 'true', 'false',
+     'true', 'true', 'false', 'I tend to be constipated (have difficulty '
+     'passing stool)'],
+    ['10317.000023046', '14.0', 'Never', 'false', 'true', '18.6', 'Normal',
+     'Diagnosed by a medical professional (doctor, physician assistant)',
+     '12.123028', '24.986377', '4.82881317767', '5.00842790392',
+     '212.767995747', '601.601496282', '114.2', '351.0', 'false', 'true',
+     'true', 'true', 'false', 'I tend to have normal formed stool'],
+    ['10317.000028154', '54.0', 'Occasionally (1-2 times/week)', 'true',
+     'false', '21.72', 'Normal', 'Diagnosed by a medical professional '
+     '(doctor, physician assistant)', '17.004322', '31.447394',
+     '5.75849162154', '5.95677948173', '250.100161474', '589.906183066',
+     '149.6', '377.1', 'true', 'false', 'true', 'true', 'false',
+     'I tend to have diarrhea (watery stool)'],
+    ['10317.000020499', '33.0', 'Rarely (a few times/month)', 'true', 'false',
+     '23.48', 'Normal', 'Diagnosed by a medical professional (doctor, '
+     'physician ' 'assistant)', '11.597293', '24.977299', '3.70846915327',
+     '3.84415524862', '214.889997618', '381.499716075', '99.9', '293.9',
+     'true', 'true', 'true', 'true', 'false', 'I tend to have diarrhea '
+     '(watery stool)'],
     ])
+
+columns = pd.Index([
+    '#SampleID',  'AGE_YEARS', 'ALCOHOL_FREQUENCY', 'ALCOHOL_TYPES_BEERCIDER',
+    'ALCOHOL_TYPES_UNSPECIFIED', 'BMI', 'BMI_CAT', 'IBD',
+    'PD_whole_tree_1k', 'PD_whole_tree_10k', 'shannon_1k',
+    'shannon_10k', 'chao1_1k', 'chao1_10k', 'observed_otus_1k',
+    'observed_otus_10k', 'SUBSET_AGE', 'SUBSET_ANTIBIOTIC_HISTORY',
+    'SUBSET_BMI', 'SUBSET_DIABETES', 'SUBSET_IBD', 'BOWEL_MOVEMENT_QUALITY'],
+    dtype='object')
 
 
 class AgDataTest(TestCase):
@@ -107,21 +152,24 @@ class AgDataTest(TestCase):
         map_data = np.array(
             [['60', 'Daily', 'false', 'true', '25.13', 'Overweight',
               'I do not have this condition', '2.866733', '2.970151',
-              '2.49309705457', '2.37419183588', '9.15', '9.7', '7.6', '8.0'],
+              '2.49309705457', '2.37419183588', '9.15', '9.7', '7.6', '8.0',
+              'true', 'false', 'true', 'true', 'true'],
              ['57.0', 'Occasionally (1-2 times/week)', 'false', 'true',
               '26.73', 'Overweight', 'I do not have this condition',
               '2.198198', '2.446593', '1.83213159668', '1.91370771085', '5.65',
-              '6.3', '5.1', '5.9'],
+              '6.3', '5.1', '5.9', 'true', 'true', 'true', 'true', 'true'],
              ['34.0', 'Rarely (a few times/month)', 'false', 'true', '19.27',
               'Normal', 'None', '1.932658', '2.012048', '0.970334630884',
-              '1.0890945893', '4.05', '4.2', '3.9', '4.2']],
+              '1.0890945893', '4.05', '4.2', '3.9', '4.2', 'false', 'true',
+              'false', 'true', 'true']],
             dtype=object)
         columns = pd.Index([
             'AGE_YEARS', 'ALCOHOL_FREQUENCY', 'ALCOHOL_TYPES_BEERCIDER',
             'ALCOHOL_TYPES_UNSPECIFIED', 'BMI', 'BMI_CAT', 'IBD',
             'PD_whole_tree_1k', 'PD_whole_tree_10k', 'shannon_1k',
             'shannon_10k', 'chao1_1k', 'chao1_10k', 'observed_otus_1k',
-            'observed_otus_10k'
+            'observed_otus_10k', 'SUBSET_AGE', 'SUBSET_ANTIBIOTIC_HISTORY',
+            'SUBSET_BMI', 'SUBSET_DIABETES', 'SUBSET_IBD',
             ], dtype='object')
         index = pd.Index(['10317.000007108', '10317.000005844',
                           '10317.000002035'], dtype='object', name='#SampleID')
@@ -140,11 +188,12 @@ class AgDataTest(TestCase):
                              [00., 18.,  1.],
                              [03.,  3.,  1.],
                              [03., 22., 16.]])
-        otu_ids = np.array([u'4447072', u'4352657', u'4468234', u'1000986',
-                            u'4481131', u'4479989', u'2532173'], dtype=object)
+        self.otu_ids = np.array([u'4447072', u'4352657', u'4468234',
+                                 u'1000986', u'4481131', u'4479989',
+                                 u'2532173'], dtype=object)
         sample = np.array([u'10317.000002035', u'10317.000007108',
                            u'10317.000005844'], dtype=object)
-        self.otu_ = biom.Table(otu_data, otu_ids, sample)
+        self.otu_ = biom.Table(otu_data, self.otu_ids, sample)
 
         # Sets up known distance matrices
         unweighted = np.array([[0.00000000,  0.29989178,  0.29989178],
@@ -279,9 +328,10 @@ class AgDataTest(TestCase):
                              [00., 14.,  0.],
                              [00.,  1.,  0.],
                              [01., 11.,  8.]])
-        otu_ids = np.array([u'4447072', u'4477696', u'4352657', u'4446058',
-                            u'4468234', u'1000986', u'4481131', u'4479989',
-                            u'2532173'], dtype=object)
+        otu_ids = np.array([u'4447072', u'4477696', u'4352657',
+                            u'4446058', u'4468234', u'1000986',
+                            u'4481131', u'4479989', u'2532173'],
+                            dtype=object)
         sample = np.array([u'10317.000002035', u'10317.000007108',
                            u'10317.000005844'], dtype=object)
         known_otu = biom.Table(otu_data, otu_ids, index)
@@ -343,6 +393,48 @@ class AgDataTest(TestCase):
                                     self.ag_data.beta[metric].data, 5)
             self.assertEqual(beta[metric].ids, self.ag_data.beta[metric].ids)
 
+    def test_filter_inplace(self):
+        ids = ['10317.000002035']
+        self.ag_data.filter(ids)
+        pdt.assert_frame_equal(self.map_.loc[ids], self.ag_data.map_)
+
+        npt.assert_array_equal(self.otu_ids,
+                               self.ag_data.otu_.ids('observation'))
+        npt.assert_array_equal(ids, self.ag_data.otu_.ids('sample'))
+        for otu_id in self.otu_ids:
+            npt.assert_array_equal(
+                self.otu_.filter(ids).data(otu_id, axis='observation'),
+                self.ag_data.otu_.data(otu_id, axis='observation')
+                )
+
+        self.assertEqual(self.beta.keys(), self.ag_data.beta.keys())
+        for metric in self.ag_data.beta.keys():
+            npt.assert_almost_equal(self.beta[metric].filter(ids).data,
+                                    self.ag_data.beta[metric].data, 5)
+            self.assertEqual(self.beta[metric].filter(ids).ids,
+                             self.ag_data.beta[metric].ids)
+
+    def test_filter_return(self):
+        ids = ['10317.000002035']
+        map_, otu_, beta = self.ag_data.filter(ids, inplace=False)
+        pdt.assert_frame_equal(self.map_.loc[ids], map_)
+
+        npt.assert_array_equal(self.otu_ids,
+                               otu_.ids('observation'))
+        npt.assert_array_equal(ids, otu_.ids('sample'))
+        for otu_id in self.otu_ids:
+            npt.assert_array_equal(
+                self.otu_.filter(ids).data(otu_id, axis='observation'),
+                otu_.data(otu_id, axis='observation')
+                )
+
+        self.assertEqual(self.beta.keys(), beta.keys())
+        for metric in beta.keys():
+            npt.assert_almost_equal(self.beta[metric].filter(ids).data,
+                                    beta[metric].data, 5)
+            self.assertEqual(self.beta[metric].filter(ids).ids,
+                             beta[metric].ids)
+
     def test_drop_alpha_outliers(self):
         keep = ['10317.000005844', '10317.000002035']
         keep_map = self.map_.loc[keep]
@@ -386,7 +478,7 @@ class AgDataTest(TestCase):
         # Checks the data
         pdt.assert_frame_equal(self.map_, self.ag_data.map_)
 
-    def test_return_dataset(self):
+    def test_filter_by_question(self):
         keep = ['10317.000007108', '10317.000005844']
         keep_map = self.map_.loc[keep]
         keep_otu = self.otu_.filter(keep)
@@ -396,7 +488,8 @@ class AgDataTest(TestCase):
             name='IBD',
             description=('Has the participant been diagnosed with IBD?'),
             )
-        map_, otu_, beta = self.ag_data.return_dataset(group)
+        map_, otu_, beta = self.ag_data.filter_by_question(group,
+                                                           inplace=False)
 
         # Checks the data
         pdt.assert_frame_equal(keep_map, map_)
@@ -415,14 +508,18 @@ class AgDataTest(TestCase):
                                     beta[metric].data, 5)
             self.assertEqual(keep_beta[metric].ids, beta[metric].ids)
 
+    def test_filter_subset(self):
+        # Sets up the known index values after filtering
+        known = pd.Index(['10317.000005844'],
+                         dtype='object',
+                         name=u'#SampleID')
+        self.ag_data.filter_subset(inplace=True)
+        self.assertEqual(self.ag_data.map_.index, known)
+
     def test_clean_group_continous(self):
         map_ = pd.DataFrame(
             amgut_sub,
-            columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
-                     "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
-                     "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
-                     "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
+            columns=columns,
             ).set_index('#SampleID')
         map_.replace('', np.nan, inplace=True)
         self.ag_data.map_ = map_
@@ -451,11 +548,7 @@ class AgDataTest(TestCase):
     def test_clean_group_bool(self):
         map_ = pd.DataFrame(
             amgut_sub,
-            columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
-                     "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
-                     "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
-                     "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
+            columns=columns,
             ).set_index('#SampleID')
         map_.replace('', np.nan, inplace=True)
         self.ag_data.map_ = map_
@@ -475,11 +568,7 @@ class AgDataTest(TestCase):
     def test_clean_group_categorical(self):
         map_ = pd.DataFrame(
             amgut_sub,
-            columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
-                     "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
-                     "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
-                     "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
+            columns=columns,
             ).set_index('#SampleID')
         map_.replace('', np.nan, inplace=True)
         self.ag_data.map_ = map_
@@ -538,11 +627,7 @@ class AgDataTest(TestCase):
     def test_clean_group_multiple(self):
         map_ = pd.DataFrame(
             amgut_sub,
-            columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
-                     "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
-                     "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
-                     "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
+            columns=columns,
             ).set_index('#SampleID')
         map_.replace('', np.nan, inplace=True)
         self.ag_data.map_ = map_
@@ -566,11 +651,7 @@ class AgDataTest(TestCase):
     def test_clean_group_clinical(self):
         map_ = pd.DataFrame(
             amgut_sub,
-            columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
-                     "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
-                     "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
-                     "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
+            columns=columns,
             ).set_index('#SampleID')
         map_.replace('', np.nan, inplace=True)
         self.ag_data.map_ = map_
@@ -603,11 +684,7 @@ class AgDataTest(TestCase):
     def test_clean_group_frequency(self):
         map_ = pd.DataFrame(
             amgut_sub,
-            columns=["#SampleID", "AGE_YEARS", "SEX", "IBD",
-                     "ALCOHOL_TYPES_BEERCIDER", "ALCOHOL_TYPES_RED_WINE",
-                     "ALCOHOL_TYPES_SOUR_BEERS", "ALCOHOL_TYPES_UNSPECIFIED",
-                     "BOWEL_MOVEMENT_FREQUENCY", "BOWEL_MOVEMENT_QUALITY",
-                     "COLLECTION_TIMESTAMP", "ALCOHOL_FREQUENCY"],
+            columns=columns,
             ).set_index('#SampleID')
         map_.replace('', np.nan, inplace=True)
         self.ag_data.map_ = map_
