@@ -113,6 +113,7 @@ def _remap_fed_as_infant(x):
     else:
         return x
 
+
 def _remap_weight(x):
     if x == 'Increased more than 10 pounds':
         return 'Weight gain'
@@ -131,6 +132,14 @@ dictionary = {
         dtype=str,
         order=['20s', '30s', '40s', '50s', '60s'],
         extremes=['20s', '60s'],
+        ),
+    'AGE_CORRECTED': AgContinous(
+        name='AGE_CORRECTED',
+        description=('Age, corrected for people with negative age, age greater'
+                     ' than 120 years, and individuals under 3 years of age '
+                     'who are larger than the 95% growth curve given by the '
+                     'WHO or report any alcohol consumption'),
+        unit='years',
         ),
     'ALCOHOL_FREQUENCY': AgFrequency(
         name='ALCOHOL_FREQUENCY',
