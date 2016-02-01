@@ -1,5 +1,8 @@
 import numpy as np
+import scipy
+from scipy.stats import norm as z
 from statsmodels.stats.power import FTestAnovaPower
+import skbio
 from skbio.stats.power import confidence_bound
 from matplotlib import rcParams
 
@@ -17,6 +20,123 @@ __email__ = "Justine.Debelius@colorado.edu"
 rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['Helvetica', 'Arial']
 rcParams['text.usetex'] = True
+
+
+def ag_alpha_test(metric, question, data, ids, permutations=249):
+    """Tests alpha diversity with a krusal wallis test"""
+    alpha = [data.map_.loc[i, metric] for i in ids]
+    return scipy.stats.kruskal(*alpha)[1]
+
+
+def ag_beta_test(metric, question, data, ids, permutations=249):
+    """Tests beta diversity with a permanova"""
+    ids = np.hstack(ids)
+    beta_p = skbio.stats.distance.permanova(
+        distance_matrix=data.beta[metric].filter(ids),
+        grouping=data.map_.loc[ids],
+        column=question.name,
+        permutations=permutations,
+    )
+    return beta_p['p-value']
+
+
+def z_effect(counts, power, alpha=0.05):
+    """Estimates the effect size for power based on the z distribution
+
+    This is based on the equations in
+        Lui, X.S. (2014) *Statistical power analysis for the social and
+        behavioral sciences: basic and advanced techniques.* New York:
+        Routledge. 378 pg.
+    The equation assumes a positive magnitude to the effect size and a
+    two-tailed test.
+
+    Parameters
+    ----------
+    counts : array
+        The number of observations for each power depth
+    power : array
+        The statistical power at the depth specified by `counts`
+    alpha : float
+        The critial value used to calculate the power
+
+    Returns
+    effect : array
+        T A standard measure of the difference between the underlying
+        populations
+    """
+    z_diff = z.ppf(power) + z.ppf(1 - alpha / 2)
+    eff = np.sqrt(2 * np.square(z_diff) / counts)
+    eff = eff[np.isinf(eff) == False]
+    return eff
+
+
+def extrapolate_f(counts, pwr_, cnts, alpha=0.05):
+    """Converts emperical power to extrapolated
+
+    Parameters
+    ----------
+    counts : array
+        The number of observations which should be used in the final power
+        result.
+    pwr_ : array
+        The observed power. Each column corresponds to the number of
+        observations used in `cnts`. The rows correspond to different runs
+    cnts : array
+        The number of observations drawn to calculate the observed power.
+    alpha : float, optional
+        The critical value for power calculations.
+
+    Returns
+    -------
+    power : array
+        The extrapolated power for the number of observations given by `counts`
+
+    """
+    # Gets the average emperical effect size
+    effs = np.zeros(pwr_.shape) * np.nan
+    for idx, pwr in enumerate(pwr_):
+        for idy, cnt in enumerate(cnts):
+            try:
+                effs[idx, idy] = ft.solve_power(None, cnt, alpha, pwr[idy])
+            except:
+                pass
+    eff_mean = np.nanmean(effs)
+    # Calculates the extrapolated power curve
+    extr_pwr = ft.solve_power(effect_size=eff_mean,
+                              nobs=counts,
+                              alpha=0.05,
+                              power=None)
+
+    return extr_pwr
+
+
+def z_power(counts, eff, alpha=0.05):
+    """Estimates power for a z distribution from an effect size
+
+    This is based on the equations in
+        Lui, X.S. (2014) *Statistical power analysis for the social and
+        behavioral sciences: basic and advanced techniques.* New York:
+        Routledge. 378 pg.
+    The equation assumes a positive magnitude to the effect size and a
+    two-tailed test.
+
+    Parameters
+    ----------
+    counts : array
+        The number of observations for each power depth
+    effect : float
+        A standard measure of the difference between the underlying populations
+     alpha : float
+        The critial value used to calculate the power
+
+    Returns
+    power : array
+        The statistical power at the depth specified by `counts`
+
+    """
+    power = ((z.cdf(eff * np.sqrt(counts/2) - z.ppf(1 - alpha/2)) +
+             (z.cdf(z.ppf(alpha/2) - eff * np.sqrt(counts/2)))))
+    return power
 
 
 def collate_effect_size(counts, powers, alpha):

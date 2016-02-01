@@ -113,22 +113,26 @@ class AgData:
         self._check_dataset()
 
         # Determines the filepaths
-        map_fp = os.path.join(self.data_dir,
-                              'ag_%(rarefaction_depth)s_%(bodysite)s.txt'
-                              % self.data_set)
-        otu_fp = os.path.join(self.data_dir,
-                              'ag_%(rarefaction_depth)s_%(bodysite)s.biom'
-                              % self.data_set)
-        unweighted_fp = os.path.join(self.data_dir,
-                                     'unweighted_unifrac_ag_'
-                                     '%(rarefaction_depth)s_%(bodysite)s.txt'
-                                     % self.data_set)
-        weighted_fp = os.path.join(self.data_dir,
-                                   'weighted_unifrac_ag_%(rarefaction_depth)s'
-                                   '_%(bodysite)s.txt'
+        self.map_fp = os.path.join(self.data_dir,
+                                   'ag_%(rarefaction_depth)s_%(bodysite)s.txt'
                                    % self.data_set)
+        self.otu_fp = os.path.join(self.data_dir,
+                                   'ag_%(rarefaction_depth)s_%(bodysite)s.biom'
+                                   % self.data_set)
+        self.beta_fp = {'unweighted_unifrac':
+                        os.path.join(self.data_dir,
+                                     'unweighted_unifrac_ag_'
+                                     '%(rarefaction_depth)s_'
+                                     '%(bodysite)s.txt'
+                                     % self.data_set),
+                        'weighted_unifrac':
+                        os.path.join(self.data_dir,
+                                     'weighted_unifrac_ag_'
+                                     '%(rarefaction_depth)s'
+                                     '_%(bodysite)s.txt'
+                                     % self.data_set)}
 
-        self.map_ = pd.read_csv(map_fp,
+        self.map_ = pd.read_csv(self.map_fp,
                                 sep='\t',
                                 dtype=str,
                                 na_values=self.na_values)
@@ -136,13 +140,11 @@ class AgData:
         a_columns = self.alpha_columns[self.data_set['rarefaction_depth']]
         self.map_[a_columns] = self.map_[a_columns].astype(float)
 
-        self.otu_ = biom.load_table(otu_fp)
+        self.otu_ = biom.load_table(self.otu_fp)
 
-        self.beta = {'unweighted_unifrac':
-                     skbio.DistanceMatrix.read(unweighted_fp),
-                     'weighted_unifrac':
-                     skbio.DistanceMatrix.read(weighted_fp)
-                     }
+        self.beta = {metric:
+                     skbio.DistanceMatrix.read(fp)
+                     for metric, fp in self.beta_fp.iteritems()}
 
     def filter(self, ids, inplace=True):
         """Filter the dataset with a list of ids
@@ -180,7 +182,52 @@ class AgData:
         else:
             return map_, otu_, beta
 
-    def drop_alpha_outliers(self, metric='PD_whole_tree_10k', limit=55, inplace=True):
+    def clean_age(self):
+        """..."""
+        continous_cols = ['AGE_YEARS', 'HEIGHT_CM', 'WEIGHT_KG']
+        self.map_['AGE_CORRECTED'] = self.map_['AGE_YEARS']
+        self.map_[continous_cols] = self.map_[continous_cols].astype(float)
+        age_check = self.map_['AGE_YEARS'] < 3
+        height_check = (~ pd.isnull(self.map_['HEIGHT_CM']) &
+                        self.map_['HEIGHT_CM'] > 91.4)
+        weight_check = (~ pd.isnull(self.map_['WEIGHT_KG']) &
+                        self.map_['WEIGHT_KG'] > 16.3)
+
+        def check_etoh(x):
+            return not (x == 'Never') and not pd.isnull(x)
+
+        def bin_age(x):
+            x = float(x)
+            if np.isnan(x):
+                return x
+            elif x < 3:
+                return 'baby'
+            elif x < 13:
+                return 'child'
+            elif x < 20:
+                return 'teen'
+            elif x < 30:
+                return '20s'
+            elif x < 40:
+                return '30s'
+            elif x < 50:
+                return '40s'
+            elif x < 60:
+                return '50s'
+            elif x < 70:
+                return '60s'
+            else:
+                return '70+'
+
+        etoh_check = self.map_['ALCOHOL_FREQUENCY'].apply(check_etoh)
+        replace = age_check & height_check & weight_check & etoh_check
+
+        self.map_.loc[replace, 'AGE_CORRECTED'] = np.nan
+
+        self.map_['AGE_CAT'] = self.map_['AGE_CORRECTED'].apply(bin_age)
+
+    def drop_alpha_outliers(self, metric='PD_whole_tree_10k', limit=55,
+                            inplace=True):
         """Removes samples with alpha diversity above the specified range
 
         In rounds 1-21 of the AmericanGut, there is a participant who has an

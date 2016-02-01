@@ -29,7 +29,8 @@ def ag_dictionary(name):
 
     """
     if name not in dictionary:
-        raise ValueError('%s is cannot be found in the data dictionary.' % name)
+        raise ValueError('%s is cannot be found in the data dictionary.'
+                         % name)
     else:
         return dictionary[name]
 
@@ -38,6 +39,8 @@ def _remap_abx(x):
     if x in {'I have not taken antibiotics in the past year.',
              'I have not taken antibiotics in the past year'}:
         return 'More than a year'
+    elif x in {"Week", "Month"}:
+        return "Month"
     else:
         return x
 
@@ -353,6 +356,9 @@ dictionary = {
         description=("How often does the participant consume meals cooked"
                      " at home?"),
         combine='rarely',
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily'],
         ),
     'IBD': AgClinical(
         name='IBD',
@@ -434,6 +440,7 @@ dictionary = {
         order=['Hispanic', 'African American', 'Other',
                'Caucasian', 'Asian or Pacific Islander'],
         frequency_cutoff=50,
+        extremes=['Caucasian', 'Asian or Pacific Islander'],
         ),
     'SEASONAL_ALLERGIES': AgBool(
         name="SEASONAL_ALLERGIES",
@@ -482,6 +489,9 @@ dictionary = {
         name="VEGETABLE_FREQUENCY",
         description=("How many times a week the participant eats vegetables"),
         combine='rarely',
+        order=['Never', 'Rarely (less than once/week)',
+               'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
+               'Daily'],
         ),
     'VITAMIN_B_SUPPLEMENT_FREQUENCY': AgFrequency(
         name="VITAMIN_B_SUPPLEMENT_FREQUENCY",

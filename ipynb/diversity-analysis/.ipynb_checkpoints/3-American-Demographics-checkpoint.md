@@ -5,7 +5,6 @@ The information generated here will be used for tables 1 and 3 of the American G
 
 We'll start by importing the necessary libraries.
 
-
 ```python
 import matplotlib
 matplotlib.use('Agg')
@@ -78,10 +77,6 @@ countries.sort_values('Samples', ascending=False)
 ```
 
     There are 28 countries and soverign states represented here.
-
-
-
-
 
 <div>
 <table border="1" class="dataframe">
@@ -242,8 +237,6 @@ countries.sort_values('Samples', ascending=False)
 </table>
 </div>
 
-
-
 Let's now compare the samples to the demographics of American Gut Samples from participants in the United States to the demographics of the US population, according to the 2010 census.
 
 
@@ -371,6 +364,7 @@ census_data = {
                # from http://www.cdc.gov/tobacco/data_statistics/fact_sheets/adult_data/cig_smoking/
                'SMOKING_FREQUENCY - I do not smoke': 82.6,
                'SMOKING_FREQUENCY - I smoke': 17.4
+
 }
 
 res['US Census/CDC/NHANES data precentages'] = pd.DataFrame.from_dict(census_data, orient='index')
@@ -382,9 +376,6 @@ Now, let's look at the results.
 ```python
 res.sort_index()
 ```
-
-
-
 
 <div>
 <table border="1" class="dataframe">
@@ -508,5 +499,3 @@ res.sort_index()
   </tbody>
 </table>
 </div>
-
-

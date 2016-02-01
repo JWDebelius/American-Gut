@@ -1,7 +1,9 @@
 import os
 
 processing_dir = os.environ.get('AG_WORKING_DIR', 'agp_processing')
-WORKING_DIR = os.path.join(os.path.abspath('.'), processing_dir)
+WORKING_DIR = os.path.join(os.path.abspath(__file__).split('American-Gut')[0],
+                           'American-Gut/ipynb/primary-processing/agp_processing')
+
 if not os.path.exists(WORKING_DIR):
     os.mkdir(WORKING_DIR)
 

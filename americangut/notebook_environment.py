@@ -2155,7 +2155,8 @@ def check_save_dir(dataset, base_dir=None):
     # Builds the subsequent directory structure
     save_dir = os.path.join(
         base_dir,
-        'results/%(bodysite)s/%(sequence_trim)s/%(participant_set)s/'
+        'results/%(bodysite)s/%(sequence_trim)s/'
+        '%(participant_set)s_participants/'
         '%(samples_per_participants)s/%(rarefaction_depth)s'
         % dataset
         )
@@ -2164,6 +2165,18 @@ def check_save_dir(dataset, base_dir=None):
         os.makedirs(save_dir)
 
     return save_dir
+
+
+def check_dir(dir_):
+    """Creates the specified directory if it does not exist
+
+    Parameters
+    ----------
+    dir : strf
+        the directory to be checked
+    """
+    if not os.path.exists(dir_):
+        os.makedirs(dir_)
 
 
 def get_sortmerna_index():

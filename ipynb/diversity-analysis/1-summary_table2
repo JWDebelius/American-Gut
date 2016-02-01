@@ -1,0 +1,10 @@
+__Credit__: Copyright American Gut Project 2016
+__License__: BSD
+
+This notebook is the first in a series intended to summarize and describe demographic characteristics of the American Gut cohort. We'll start here by comparing the sample number and depth to the Human Microbiome Project [PMID []()], a X million dollar effort by the National Institute of Health which characterized the microbiome through 16S marker gene and shotgun metagenomic sequencing of 16 to 18 bodysites on 242 healthy indiviudals.
+
+Next, we'll look at the international make up of the American Gut participants. We'll focus on participants in four countries: The United States, where the American Gut Project was founded, two sister project sites in the United Kingdom and Australia, and Canada.
+
+Finally, we'll compare American participants in the project with demographics of the United States as a whole.
+
+To start, we'll import 
