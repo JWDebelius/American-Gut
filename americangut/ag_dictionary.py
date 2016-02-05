@@ -249,7 +249,7 @@ dictionary = {
         description=("country of residence"),
         dtype=str,
         ontology='GAZ',
-        mimmarks=True,
+        mimarks=True,
         order=['Australia', 'Belgium', 'Brazil', 'Canada', 'China',
                'Czech Republic', 'Denmark', 'Finland', 'France', 'Germany',
                'Ireland', 'Isle of Man', 'Italy', 'Japan', 'Jersey',
@@ -295,7 +295,7 @@ dictionary = {
         description="Primary source of water",
         dtype=str,
         order=['Bottled', 'City', 'Filtered', 'Not sure', 'Well'],
-        extreme=['Bottled', 'Well'],
+        extremes=['Bottled', 'Well'],
         ),
     'EXERCISE_FREQUENCY': AgFrequency(
         name="EXERCISE_FREQUENCY",
@@ -452,8 +452,8 @@ dictionary = {
                      "sex, not sexual identity"),
         dtype=str,
         order=['female', 'other', 'male'],
-        mimmarks=True,
-        extreme=['male', 'female'],
+        mimarks=True,
+        extremes=['male', 'female'],
         ),
     "SLEEP_DURATION": AgCategorical(
         name="SLEEP_DURATION",
@@ -462,7 +462,7 @@ dictionary = {
         order=['Less than 5 hours', '5-6 hours', '6-7 hours', '7-8 hours',
                '8 or more hours'],
         remap=_remap_sleep,
-        extreme=['Less than 5 hours', '8 or more hours'],
+        extremes=['Less than 5 hours', '8 or more hours'],
         ),
     'SMOKING_FREQUENCY': AgFrequency(
         name="SMOKING_FREQUENCY",
@@ -483,7 +483,7 @@ dictionary = {
         dtype=str,
         order=['Less than 5', '6 to 10', '11 to 20', '21 to 30',
                'More than 30'],
-        extreme=['Less than 5', 'More than 30'],
+        extremes=['Less than 5', 'More than 30'],
         ),
     'VEGETABLE_FREQUENCY': AgFrequency(
         name="VEGETABLE_FREQUENCY",

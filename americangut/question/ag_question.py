@@ -85,36 +85,3 @@ class AgQuestion:
         if self.name not in map_.columns:
             raise ValueError('%s is not a column in the supplied map!'
                              % self.name)
-
-    def remap_data_type(self, map_):
-        """Makes sure the target column in map_ has the correct datatype
-
-        map_ : DataFrame
-            A pandas dataframe containing the column described by the question
-            name.
-
-        """
-        if self.dtype == bool:
-            if not (set(map_[self.name].dropna()).issubset(
-                    self.true_values.union(self.false_values))):
-                raise TypeError('%s cannot be cast to a bool value.'
-                                % self.name)
-
-            def remap_(x):
-                if isinstance(x, str) and x.lower() in self.true_values:
-                    return True
-                elif isinstance(x, str) and x.lower() in self.false_values:
-                    return False
-                elif np.isnan(x):
-                    return x
-                else:
-                    try:
-                        return bool(x)
-                    except:
-                        return np.nan
-        else:
-            def remap_(x):
-                return self.dtype(x)
-
-        map_[self.name] = map_[self.name].apply(remap_).astype(self.dtype)
-        map_.replace('nan', np.nan, inplace=True)

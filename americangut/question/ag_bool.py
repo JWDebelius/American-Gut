@@ -4,7 +4,8 @@ from americangut.question.ag_categorical import AgCategorical
 
 
 class AgBool(AgCategorical):
-    def __init__(self, name, description, **kwargs):
+    def __init__(self, name, description, clean_name=None, remap=None,
+                 free_response=False, mimarks=False, ontology=None):
         """A question object for boolean question
 
         Parameters
@@ -24,7 +25,9 @@ class AgBool(AgCategorical):
 
         """
         AgCategorical.__init__(self, name, description, bool,
-                               ['true', 'false'], **kwargs)
+                               ['true', 'false'], clean_name=clean_name,
+                               remap=remap, free_response=free_response,
+                               mimarks=mimarks, ontology=ontology)
         self.type = 'Bool'
 
     def convert_to_word(self, map_):
@@ -50,7 +53,9 @@ class AgBool(AgCategorical):
 
 
 class AgMultiple(AgBool):
-    def __init__(self, name, description, unspecified, **kwargs):
+    def __init__(self, name, description, unspecified, clean_name=None,
+                 remap=None, free_response=False, mimarks=False,
+                 ontology=None):
         """A question object for a multiple response question
 
         Multiple response questions have a checkbox, where each response
@@ -79,7 +84,9 @@ class AgMultiple(AgBool):
 
         """
 
-        AgBool.__init__(self, name, description, **kwargs)
+        AgBool.__init__(self, name, description, clean_name=clean_name,
+                        remap=remap, free_response=free_response,
+                        mimarks=mimarks, ontology=ontology)
         self.type = 'Multiple'
         self.unspecified = unspecified
 

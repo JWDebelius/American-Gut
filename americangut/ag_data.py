@@ -346,6 +346,7 @@ class AgData:
             to be used.
 
         """
+        group.remap_data_type(self.map_)
 
         if group.type == 'Continous':
             group.drop_outliers(self.map_)

@@ -8,7 +8,10 @@ from americangut.question.ag_question import AgQuestion
 
 class AgCategorical(AgQuestion):
 
-    def __init__(self, name, description, dtype, order, **kwargs):
+    def __init__(self, name, description, dtype, order, extremes=None,
+                 frequency_cutoff=None, drop_ambiguous=True,
+                 ambiguous_values=None, clean_name=None, remap=None,
+                 free_response=False, mimarks=False, ontology=None):
         """A question object for categorical or ordinal questions
 
         Parameters
@@ -46,25 +49,29 @@ class AgCategorical(AgQuestion):
             raise ValueError('%s is not a supported datatype for a '
                              'categorical variable.' % dtype)
         # Initializes the question
-        AgQuestion.__init__(self, name, description, dtype, **kwargs)
+        AgQuestion.__init__(self, name, description, dtype, clean_name=None,
+                            remap=None, free_response=False, mimarks=False,
+                            ontology=None)
 
         self.type = 'Categorical'
 
         if len(order) == 1:
             raise ValueError('There cannot be possible response.')
         self.order = order
-        self.extremes = kwargs.get('extremes', None)
-        if self.extremes is None:
+        if extremes is not None:
+            self.extremes = extremes
+        else:
             self.extremes = [order[0], order[-1]]
 
         self.earlier_order = []
-        self.frequency_cutoff = kwargs.get('frequency_cutoff', None)
-        self.drop_ambiguous = kwargs.get('drop_ambiguous', True)
-        self.ambiguous_values = kwargs.get(
-            'ambiguous_values',
-            {"none of the above", "not sure", "other", 'nan',
-             "i don't know, i do not have a point of reference"
-             })
+        self.frequency_cutoff = frequency_cutoff
+        self.drop_ambiguous = drop_ambiguous
+        if ambiguous_values is None:
+            self.ambiguous_values = {"none of the above", "not sure", "other",
+                                     'nan', "i don't know, i do not have a "
+                                     "point of reference"}
+        else:
+            self.ambiguous_values = None
 
     def _update_order(self, remap_):
         """Updates the order and earlier order arguments"""
@@ -76,6 +83,41 @@ class AgCategorical(AgQuestion):
             if new_o not in self.order and not pd.isnull(new_o):
                 self.order.append(new_o)
         self.extremes = [remap_(e) for e in self.extremes]
+
+    def remap_data_type(self, map_):
+        """Makes sure the target column in map_ has the correct datatype
+
+        map_ : DataFrame
+            A pandas dataframe containing the column described by the question
+            name.
+
+        """
+        if self.dtype == bool:
+            if not (set(map_[self.name].dropna()).issubset(
+                    self.true_values.union(self.false_values))):
+                raise TypeError('%s cannot be cast to a bool value.'
+                                % self.name)
+
+            def remap_(x):
+                if isinstance(x, str) and x.lower() in self.true_values:
+                    return True
+                elif isinstance(x, str) and x.lower() in self.false_values:
+                    return False
+                elif np.isnan(x):
+                    return x
+                else:
+                    try:
+                        return bool(x)
+                    except:
+                        return np.nan
+        else:
+            def remap_(x):
+                return self.dtype(x)
+
+        map_[self.name] = map_[self.name].apply(remap_).astype(self.dtype)
+        map_.replace('nan', np.nan, inplace=True)
+
+        self._update_order(remap_)
 
     def remove_ambiguity(self, map_):
         """Removes ambiguous groups from the mapping file
@@ -89,7 +131,6 @@ class AgCategorical(AgQuestion):
         """
         if self.drop_ambiguous:
             self.check_map(map_)
-            self.remap_data_type(map_, watch=False)
 
             def _remap(x):
                 if x.lower() in self.ambiguous_values:
@@ -112,7 +153,6 @@ class AgCategorical(AgQuestion):
 
         """
         self.check_map(map_)
-        self.remap_data_type(map_, watch=False)
 
         if self.remap_ is not None:
             index = map_[self.name].dropna().index
@@ -130,7 +170,6 @@ class AgCategorical(AgQuestion):
 
         """
         self.check_map(map_)
-        self.remap_data_type(map_, watch=False)
 
         counts = map_.groupby(self.name).count().max(1)[self.order]
         below_locs = (counts <= self.frequency_cutoff) | pd.isnull(counts)
@@ -224,12 +263,15 @@ class AgClinical(AgCategorical):
                  'Self-diagnosed',
                  'I do not have this condition'
                  ]
-        AgCategorical.__init__(self, name, description, str, order, **kwargs)
+        extremes = ['I do not have this condition',
+                    'Diagnosed by a medical professional (doctor, '
+                    'physician assistant)']
+
+        AgCategorical.__init__(self, name, description, str, order, extremes,
+                               clean_name=None, remap=None, mimarks=False,
+                               free_response=False, ontology=None)
         self.strict = strict
         self.type = 'Clinical'
-        self.extremes = ['I do not have this condition',
-                         'Diagnosed by a medical professional (doctor, '
-                         'physician assistant)']
 
     def remap_clinical(self, map_):
         """Converts the clincial condtion to a boolean value
@@ -300,8 +342,10 @@ class AgFrequency(AgCategorical):
                      'Occasionally (1-2 times/week)',
                      'Regularly (3-5 times/week)',
                      'Daily']
-        AgCategorical.__init__(self, name, description, dtype=str, order=order,
-                               **kwargs)
+        AgCategorical.__init__(self, name, description, str, order,
+                               extremes=None, clean_name=None, remap=None,
+                               mimarks=False, free_response=False,
+                               ontology=None)
         self.type = 'Frequency'
         self.combine = combine
 
