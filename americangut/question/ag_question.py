@@ -5,11 +5,16 @@ import numpy as np
 
 class AgQuestion:
     """A base object class for handling American Gut Data dictionary entries"""
-    true_values = {'yes', 'y', 'true', 1, 1.0, 'Y', 'YES', 'Yes', True}
-    false_values = {'no', 'n', 'false', 0, 0.0, 'N', 'NO', 'No', False}
+    true_values = {'yes', 'true', 1, 1.0, True}
+    false_values = {'no', 'false', 0, 0.0, False}
 
-    def __init__(self, name, description, dtype, clean_name=None, **kwargs):
+    def __init__(self, name, description, dtype, clean_name=None, remap=None,
+                 free_response=False, mimarks=False, ontology=None):
         """A base object for describing single question outputs
+
+        The Question Object is somewhat limited in its functionality. For most
+        questions in the dataset, it is better to use a child object with the
+        appropriate question type.
 
         Parameters
         ----------
@@ -27,8 +32,8 @@ class AgQuestion:
         free_response: bool, optional
             Whether the question is a free response question or controlled
             vocabulary
-        mimmarks : bool, optional
-            If the question was a mimmarks standard field
+        mimarks : bool, optional
+            If the question was a mimarks standard field
         ontology : str, optional
             The type of ontology, if any, which was used in the field value.
 
@@ -56,10 +61,10 @@ class AgQuestion:
             self.clean_name = clean_name
 
         # Sets up
-        self.free_response = kwargs.get('free_response', False)
-        self.mimmarks = kwargs.get('mimmarks', False)
-        self.ontology = kwargs.get('ontology', None)
-        self.remap_ = kwargs.get('remap', None)
+        self.free_response = free_response
+        self.mimarks = mimarks
+        self.ontology = ontology
+        self.remap_ = remap
 
     def check_map(self, map_):
         """Checks the group exists in the metadata
@@ -70,21 +75,23 @@ class AgQuestion:
             A pandas object containing the data to be analyzed. The
             Question `name` should be a column in the `map_`.
 
+        Raises
+        ------
+        ValueError
+            If the column identified by the question object is not part of the
+            supplied DataFrame.
+
         """
         if self.name not in map_.columns:
             raise ValueError('%s is not a column in the supplied map!'
                              % self.name)
 
-    def remap_data_type(self, map_, watch=True):
+    def remap_data_type(self, map_):
         """Makes sure the target column in map_ has the correct datatype
 
         map_ : DataFrame
             A pandas dataframe containing the column described by the question
             name.
-        watch : bool
-            A flag to indicate the change should be logged. Should generally
-            be true, unless `remap_data_type` is called before another
-            function is executed.
 
         """
         if self.dtype == bool:
@@ -111,7 +118,3 @@ class AgQuestion:
 
         map_[self.name] = map_[self.name].apply(remap_).astype(self.dtype)
         map_.replace('nan', np.nan, inplace=True)
-
-        if watch and self.type in {'Categorical', 'Multiple', 'Clinical',
-                                   'Bool', 'Frequency'}:
-            self._update_order(remap_)

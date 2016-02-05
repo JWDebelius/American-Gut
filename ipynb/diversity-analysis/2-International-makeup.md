@@ -6,9 +6,7 @@ We'll start by importing the necessary libraries.
 
 ```python
 >>> import os
->>> from functools
->>> import partial
->>> 
+...
 >>> import numpy as np
 >>> import pandas as pd
 ```
@@ -23,40 +21,67 @@ Next, we're going to locate the mapping file and raw OTU table.
 
 We'll start by reading in the mapping file.
 
-
 ```python
->>> md = pd.read_csv(map_fp, sep='\t', dtype=str, na_values=['NA', 'no_data', 'unknown', 'Unspecified', 'Unknown', 'None'])
->>> md.set_index('#SampleID', inplace=True)
-```
-
-We're also going to calculate the number of sequences per sample, and add that to our mapping file.
-
-```python
->>> otu_summary = !biom summarize-table -i $otu_fp
->>> seq_depth = pd.DataFrame(np.array([l.split(': ') for l in otu_summary[15:]]), columns=['#SampleID', 'counts'])
->>> seq_depth.set_index('#SampleID', inplace=True)
->>> 
->>> md['count'] = seq_depth
+>>> map_ = pd.read_csv(map_fp, sep='\t', dtype=str, na_values=['NA', 'no_data', 'unknown', 'Unspecified', 'Unknown', 'None'])
+>>> map_.set_index('#SampleID', inplace=True)
 ```
 
 We're going to start by dropping the blank samples. These are samples where the body habitat is not defined.
 
-
 ```python
->>> md = md[md['BODY_HABITAT'].notnull()]
+>>> map_ = map_[map_['BODY_HABITAT'].notnull()]
 ```
 
 Next, we're going to get a single sample for each person. The `HOST_SUBEJCT_ID` identfies the individual.
 
-
 ```python
 >>> single = []
->>> for indv, ids in md.groupby('HOST_SUBJECT_ID').groups.iteritems():
-...     single.append(ids[0])
+>>> for bodysite, sub_map in map_.groupby('BODY_HABITAT'):
+...     for indv, ids in sub_map.groupby('HOST_SUBJECT_ID').groups.iteritems():
+...         single.append(ids[0])
+...
+>>> map_['Participants'] = np.nan
+>>> map_.loc[single, 'Participants'] = 1
+>>> map_['Samples'] = 1
+```
 
->>> md['Participants'] = np.nan
->>> md['Samples'] = 1
->>> md.loc[single, 'Participants'] = 1
+```python
+>>> map_[['Samples', 'Participants']].sum()
+Samples         6793
+Participants    6006
+dtype: float64
+```
+
+```python
+>>> map_.groupby('BODY_HABITAT').count()[['Samples', 'Participants']]
+                    Samples  Participants
+BODY_HABITAT                             
+UBERON:feces           5952          5380
+UBERON:hair               5             5
+UBERON:nose               7             7
+UBERON:oral cavity      477           436
+UBERON:skin             337           165
+UBERON:vagina            15            13
+```
+
+```python
+>>> print map_['AGE_YEARS'].astype(float).min(), map_['AGE_YEARS'].astype(float).max()
+0.0 101.0
+```
+
+```python
+>>> print map_['BMI'].astype(float).min(), map_['BMI'].astype(float).max()
+0.0 1130000.0
+```
+
+```python
+>>> import seaborn as sn
+>>> % matplotlib inline
+>>> sn.distplot(map_['BMI'].astype(float).dropna())
+```
+
+```python
+>>> sn.distplot(map_.loc[map_.BMI.astype(float).apply(lambda x: x < 100), 'BMI'].astype(float).dropna())
 ```
 
 Now, let's look at the countries where participants come from.
