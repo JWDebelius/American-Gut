@@ -418,7 +418,6 @@ dictionary = {
         name="POOL_FREQUENCY",
         description=("How often the participant uses a pool or hot tub"),
         combine='weekly',
-        extremes=["Never", "Daily"]
         ),
     'PREPARED_MEALS_FREQUENCY': AgFrequency(
         name="PREPARED_MEALS_FREQUENCY",

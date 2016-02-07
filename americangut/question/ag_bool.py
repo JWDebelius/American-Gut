@@ -38,8 +38,6 @@ class AgBool(AgCategorical):
             name.
         """
         self.check_map(map_)
-        self.remap_data_type(map_, watch=False)
-
         def remap_(x):
             if x in self.true_values:
                 return 'yes'

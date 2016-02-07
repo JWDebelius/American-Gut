@@ -49,9 +49,10 @@ class AgCategorical(AgQuestion):
             raise ValueError('%s is not a supported datatype for a '
                              'categorical variable.' % dtype)
         # Initializes the question
-        AgQuestion.__init__(self, name, description, dtype, clean_name=None,
-                            remap=None, free_response=False, mimarks=False,
-                            ontology=None)
+        AgQuestion.__init__(self, name, description, dtype,
+                            clean_name=clean_name, remap=remap,
+                            free_response=free_response, mimarks=mimarks,
+                            ontology=ontology)
 
         self.type = 'Categorical'
 
@@ -143,7 +144,7 @@ class AgCategorical(AgQuestion):
             self._update_order(_remap)
 
     def remap_groups(self, map_):
-        """Remaps columns in the column
+        """Remaps the groups within the column specified by question
 
         Parameters
         ----------
@@ -235,7 +236,9 @@ class AgCategorical(AgQuestion):
 
 
 class AgClinical(AgCategorical):
-    def __init__(self, name, description, strict=True, **kwargs):
+    def __init__(self, name, description, strict=True, clean_name=None,
+                 remap=None, free_response=False, mimarks=False,
+                 ontology=None):
         """A question object for questions describing clincial conditions
 
         The American Gut addresses several clincial conditions, based on the
@@ -268,8 +271,9 @@ class AgClinical(AgCategorical):
                     'physician assistant)']
 
         AgCategorical.__init__(self, name, description, str, order, extremes,
-                               clean_name=None, remap=None, mimarks=False,
-                               free_response=False, ontology=None)
+                               clean_name=clean_name, remap=remap,
+                               free_response=free_response, mimarks=mimarks,
+                               ontology=ontology)
         self.strict = strict
         self.type = 'Clinical'
 
@@ -313,7 +317,9 @@ class AgClinical(AgCategorical):
 
 
 class AgFrequency(AgCategorical):
-    def __init__(self, name, description, order=None, combine=None, **kwargs):
+    def __init__(self, name, description, order=None, combine=None,
+                 clean_name=None, remap=None, free_response=False,
+                 mimarks=False, ontology=None):
         """
         A question object for frequency questions relating to weekly occurance
 
@@ -343,9 +349,9 @@ class AgFrequency(AgCategorical):
                      'Regularly (3-5 times/week)',
                      'Daily']
         AgCategorical.__init__(self, name, description, str, order,
-                               extremes=None, clean_name=None, remap=None,
-                               mimarks=False, free_response=False,
-                               ontology=None)
+                               extremes=None, clean_name=clean_name,
+                               remap=remap, mimarks=mimarks,
+                               free_response=free_response, ontology=ontology)
         self.type = 'Frequency'
         self.combine = combine
 
