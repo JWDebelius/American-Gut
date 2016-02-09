@@ -184,9 +184,11 @@ class AgData:
 
     def clean_age(self):
         """..."""
-        continous_cols = ['AGE_YEARS', 'HEIGHT_CM', 'WEIGHT_KG']
+        for col in ['AGE_YEARS', 'HEIGHT_CM', 'WEIGHT_KG']:
+            self.map_[col] = self.map_[col].apply(lambda x: float(x))
+            self.map_[col] = self.map_[col].astype(float)
         self.map_['AGE_CORRECTED'] = self.map_['AGE_YEARS']
-        self.map_[continous_cols] = self.map_[continous_cols].astype(float)
+
         age_check = self.map_['AGE_YEARS'] < 3
         height_check = (~ pd.isnull(self.map_['HEIGHT_CM']) &
                         self.map_['HEIGHT_CM'] > 91.4)

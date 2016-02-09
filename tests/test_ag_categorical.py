@@ -167,6 +167,18 @@ class AgCategoricalTest(TestCase):
 
         self.assertEqual(self.ag_categorical.earlier_order, [self.order])
 
+    def test_remap_data_type(self):
+        test_question = AgCategorical(
+            name=''
+            )
+        self.ag_question.remap_data_type(self.map_)
+        self.assertEquals(set(self.map_[self.ag_question.name]) - {np.nan},
+                          {True, False})
+        self.ag_question.dtype = int
+        self.ag_question.remap_data_type(self.map_)
+        self.assertEqual(set(self.map_[self.ag_question.name]) - {np.nan},
+                         {0, 1})
+
     def test_ag_categorical_remove_ambigious(self):
         self.ag_categorical.drop_ambiguous = True
         self.ag_categorical.remove_ambiguity(self.map_)

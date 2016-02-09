@@ -367,6 +367,12 @@ dictionary = {
                      "colitis?"),
         clean_name='IBD',
         ),
+    'IBS': AgClinical(
+        name='IBS',
+        description=('Has the participant been diagnosed with irritable'
+                     'bowel syndrome?'),
+        clean_name='IBS',
+        ),
     'LACTOSE': AgBool(
         name="LACTOSE",
         description=("Is the participant lactose intolerant?"),
@@ -475,6 +481,20 @@ dictionary = {
         order=['Never', 'Rarely (less than once/week)',
                'Occasionally (1-2 times/week)', 'Regularly (3-5 times/week)',
                'Daily'],
+        ),
+    'STATE': AgCategorical(
+        name='STATE',
+        description=('The US state, provience, or regional equilivant where '
+                     'the participant lives.'),
+        dtype=str,
+        order=['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL',
+               'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME',
+               'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH',
+               'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI',
+               'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI'
+               'WY'],
+        extremes=['CA', 'CO'],
+        frequency_cutoff=50,
         ),
     'TYPES_OF_PLANTS': AgCategorical(
         name="TYPES_OF_PLANTS",
